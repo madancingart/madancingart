@@ -1,0 +1,42 @@
+---
+description: M&A Dancing Art — zasady projektu
+alwaysApply: true
+---
+
+# Projekt: strona szkoły tańca M&A Dancing Art (Mikołów + Lubliniec)
+
+## Stack
+
+- Next.js 15+ (App Router, TypeScript strict, Server Components domyślnie; `"use client"` tylko gdy konieczne)
+- Tailwind CSS v4, tokeny kolorów przez zmienne CSS w `globals.css`
+- Supabase: Postgres + Auth + RLS; klient przez `@supabase/ssr` (`createServerClient` / `createBrowserClient`)
+- Walidacja: zod; formularze: react-hook-form + zodResolver
+- Daty: date-fns z locale `pl`; strefa czasowa `Europe/Warsaw`
+- Animacje: framer-motion, subtelne (fade/slide 0.5s, `whileInView` once)
+- Ikony: lucide-react, stroke 1.5, oszczędnie
+
+## Brand
+
+- Tło: `#0B0B0D` (`--black`), karty `#141417` (`--black-soft`)
+- Złoto: `#C9962E` (`--gold`), jasne `#F0D080` (`--gold-light`), ciemne `#8C6516` (`--gold-dark`)
+- Tekst: `#F5EFE4` (`--cream`), drugorzędny `#9A948A` (`--muted`)
+- Gradient złota: `linear-gradient(135deg,#8C6516,#C9962E 45%,#F0D080 70%,#C9962E)`
+- Fonty przez `next/font/google`, OBA z `subsets: ["latin","latin-ext"]`:
+  - Arima (`--font-arima`): cały tekst i nagłówki
+  - Great Vibes (`--font-great-vibes`, weight 400): TYLKO krótkie ozdobne frazy nad nagłówkami, rozmiar min. `text-4xl`, kolor złoty. Nigdy w akapitach ani w UI. Subset `latin-ext` (polskie znaki).
+- Estetyka: elegancko, ciemno, fotografia na pierwszym planie, cienkie złote linie (1px), dużo światła (padding), asymetria. ZAKAZ: emoji w treści strony, stockowych klipartów, tęczowych gradientów, cieni `box-shadow` bez potrzeby.
+
+## Konwencje kodu
+
+- Język treści strony: polski (poprawna typografia, „polskie cudzysłowy”)
+- Nazwy w kodzie: angielski. Komponenty w `src/components`, strony w `src/app`, treści-dane w `src/content/*.ts` (typowane), utils w `src/lib`
+- Zdjęcia: statyczne importy z `src/assets` przez `next/image`; zawsze sensowny `alt` po polsku; `sizes` ustawione świadomie
+- Dostępność: `focus-visible` widoczny (złoty ring), kontrast min. AA, `aria-label` na ikonach-przyciskach
+- Mobile-first; nawigacja i kalendarz MUSZĄ działać na 360px szerokości
+- Żadnych `any`; żadnych `console.log` w commitach; komponenty małe i nazwane
+
+## Bezpieczeństwo (krytyczne)
+
+- Tabela `bookings` zawiera dane osobowe: NIGDY nie czytana przez klucz anon. Publiczny grafik czyta wyłącznie widok `public_calendar` (inicjał + typ tańca).
+- Ceny i kwoty płatności liczone wyłącznie po stronie serwera z `src/content/pricing.ts`
+- `SUPABASE_SERVICE_ROLE_KEY` i `STRIPE_SECRET_KEY` tylko w env serwera, nigdy w kodzie klienckim (`NEXT_PUBLIC_*`)

@@ -1,0 +1,99 @@
+@import "tailwindcss";
+
+:root {
+  --black: #0b0b0d;
+  --black-soft: #141417;
+  --gold: #c9962e;
+  --gold-light: #f0d080;
+  --gold-dark: #8c6516;
+  --cream: #f5efe4;
+  --muted: #9a948a;
+  --gold-gradient: linear-gradient(
+    135deg,
+    #8c6516,
+    #c9962e 45%,
+    #f0d080 70%,
+    #c9962e
+  );
+}
+
+@theme inline {
+  --color-black: var(--black);
+  --color-black-soft: var(--black-soft);
+  --color-gold: var(--gold);
+  --color-gold-light: var(--gold-light);
+  --color-gold-dark: var(--gold-dark);
+  --color-cream: var(--cream);
+  --color-muted: var(--muted);
+  --font-sans: var(--font-arima);
+  --font-script: var(--font-great-vibes);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--black);
+  color: var(--cream);
+}
+
+::selection {
+  background: var(--gold);
+  color: var(--black);
+}
+
+:focus-visible {
+  outline: 2px solid var(--gold) !important;
+  outline-offset: 2px;
+}
+
+.skip-link {
+  position: absolute;
+  left: 1rem;
+  top: 1rem;
+  z-index: 100;
+  transform: translateY(-200%);
+  background: var(--gold);
+  color: var(--black);
+  padding: 0.5rem 1rem;
+}
+
+.skip-link:focus,
+.skip-link:focus-visible {
+  transform: translateY(0);
+}
+
+.text-gold-gradient {
+  background-image: var(--gold-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.gallery-lightbox::backdrop {
+  background: rgb(0 0 0 / 0.95);
+}
+
+.gallery-lightbox[open] {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: rgb(0 0 0 / 0.95);
+}
+
+.booking-dialog::backdrop {
+  background: rgb(0 0 0 / 0.8);
+}
+
+.booking-dialog[open] {
+  display: block;
+  margin: auto;
+}
