@@ -1,7 +1,7 @@
 import type { StaticImageData } from "next/image";
 import aleksandra from "@/assets/team/aleksandra.jpg";
 import dagmara from "@/assets/team/dagmara.jpg";
-import mikolaj from "@/assets/team/mikolaj.jpg";
+import mikolaj from "@/assets/hero/hero.jpg";
 
 export type TeamMember = {
   slug: string;
@@ -11,6 +11,7 @@ export type TeamMember = {
   achievements: string[];
   bio: string[];
   photos: StaticImageData[];
+  photoClass?: string;
 };
 
 export const teamMembers: TeamMember[] = [
@@ -49,6 +50,7 @@ export const teamMembers: TeamMember[] = [
       "Łączy poziom sportowy z poczuciem humoru i łatwością kontaktu. Ma dar jasnego tłumaczenia techniki i dużo cierpliwości — zajęcia są merytoryczne, zrozumiałe i przyjazne.",
     ],
     photos: [mikolaj],
+    photoClass: "object-[center_20%]",
   },
   {
     slug: "dagmara-janosz",

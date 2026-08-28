@@ -29,11 +29,22 @@ export type AdminBookingListRow = {
   className: string | null;
 };
 
-type FilterBuilder = {
-  eq: (column: string, value: string) => FilterBuilder;
-  or: (filters: string) => FilterBuilder;
-  gte: (column: string, value: string) => FilterBuilder;
-  lte: (column: string, value: string) => FilterBuilder;
+const COLUMNS =
+  "id,kind,first_name,last_name,phone,email,status,payment_status,created_at,location_id,slot_starts_at,slot_ends_at,event_starts_at,event_ends_at,event_title,class_weekday,class_start_time,class_duration_min,class_name";
+
+type BookingListResult = Promise<{
+  data: Record<string, unknown>[] | null;
+  error: { message: string } | null;
+  count: number | null;
+}>;
+
+type BookingListQuery = {
+  eq: (column: string, value: string) => BookingListQuery;
+  or: (filters: string) => BookingListQuery;
+  gte: (column: string, value: string) => BookingListQuery;
+  lte: (column: string, value: string) => BookingListQuery;
+  range: (from: number, to: number) => BookingListQuery;
+  limit: (count: number) => BookingListQuery;
 };
 
 function mapRow(row: Record<string, unknown>): AdminBookingListRow {
@@ -60,8 +71,11 @@ function mapRow(row: Record<string, unknown>): AdminBookingListRow {
   };
 }
 
-function applyFilters<T extends FilterBuilder>(query: T, filters: BookingListFilters): T {
-  let next: FilterBuilder = query;
+function applyFilters(
+  query: BookingListQuery,
+  filters: BookingListFilters,
+): BookingListQuery {
+  let next = query;
   if (filters.status) {
     next = next.eq("status", filters.status);
   }
@@ -86,11 +100,25 @@ function applyFilters<T extends FilterBuilder>(query: T, filters: BookingListFil
       `first_name.ilike.%${q}%,last_name.ilike.%${q}%,email.ilike.%${q}%,phone.ilike.%${q}%`,
     );
   }
-  return next as T;
+  return next;
 }
 
-const COLUMNS =
-  "id,kind,first_name,last_name,phone,email,status,payment_status,created_at,location_id,slot_starts_at,slot_ends_at,event_starts_at,event_ends_at,event_title,class_weekday,class_start_time,class_duration_min,class_name";
+function startListQuery(
+  supabase: SupabaseClient,
+  withCount: boolean,
+): BookingListQuery {
+  const select = withCount
+    ? supabase
+        .from("admin_booking_list")
+        .select(COLUMNS, { count: "exact" })
+        .order("created_at", { ascending: false })
+    : supabase
+        .from("admin_booking_list")
+        .select(COLUMNS)
+        .order("created_at", { ascending: false });
+
+  return select as unknown as BookingListQuery;
+}
 
 export async function getAdminBookingsPage(
   supabase: SupabaseClient,
@@ -99,21 +127,17 @@ export async function getAdminBookingsPage(
   const from = (filters.page - 1) * BOOKING_PAGE_SIZE;
   const to = from + BOOKING_PAGE_SIZE - 1;
 
-  const { data, count, error } = await applyFilters(
-    supabase
-      .from("admin_booking_list")
-      .select(COLUMNS, { count: "exact" })
-      .order("created_at", { ascending: false })
-      .range(from, to),
+  const { data, count, error } = await (applyFilters(
+    startListQuery(supabase, true),
     filters,
-  );
+  ).range(from, to) as unknown as BookingListResult);
 
   if (error) {
     return { rows: [], total: 0 };
   }
 
   return {
-    rows: (data ?? []).map((row) => mapRow(row as Record<string, unknown>)),
+    rows: (data ?? []).map((row) => mapRow(row)),
     total: count ?? 0,
   };
 }
@@ -122,18 +146,14 @@ export async function getAdminBookingsExport(
   supabase: SupabaseClient,
   filters: BookingListFilters,
 ): Promise<AdminBookingListRow[]> {
-  const { data, error } = await applyFilters(
-    supabase
-      .from("admin_booking_list")
-      .select(COLUMNS)
-      .order("created_at", { ascending: false })
-      .limit(5000),
+  const { data, error } = await (applyFilters(
+    startListQuery(supabase, false),
     filters,
-  );
+  ).limit(5000) as unknown as BookingListResult);
 
   if (error) {
     return [];
   }
 
-  return (data ?? []).map((row) => mapRow(row as Record<string, unknown>));
+  return (data ?? []).map((row) => mapRow(row));
 }

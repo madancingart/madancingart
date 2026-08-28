@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { type FormEvent, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { resolveAdminLogin } from "@/lib/admin/login";
@@ -21,7 +20,6 @@ function polishAuthError(message: string): string {
 }
 
 export function AdminLoginForm({ denied = false }: { denied?: boolean }) {
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState(denied ? "Brak uprawnień." : "");
@@ -32,20 +30,26 @@ export function AdminLoginForm({ denied = false }: { denied?: boolean }) {
     setSubmitting(true);
     setError("");
 
-    const supabase = createClient();
-    const { error: authError } = await supabase.auth.signInWithPassword({
-      email: resolveAdminLogin(email),
-      password,
-    });
+    try {
+      const supabase = createClient();
+      const { error: authError } = await supabase.auth.signInWithPassword({
+        email: resolveAdminLogin(email),
+        password,
+      });
 
-    if (authError) {
-      setError(polishAuthError(authError.message));
+      if (authError) {
+        setError(polishAuthError(authError.message));
+        setSubmitting(false);
+        return;
+      }
+
+      // Pełne przeładowanie: ciasteczko sesji musi być w pierwszym requeście do /admin.
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- sesja Supabase w cookie
+      window.location.assign("/admin");
+    } catch {
+      setError("Nie udało się zalogować. Sprawdź połączenie i spróbuj ponownie.");
       setSubmitting(false);
-      return;
     }
-
-    router.push("/admin");
-    router.refresh();
   }
 
   return (

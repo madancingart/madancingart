@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Container } from "@/components/ui/Container";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { teamMembers } from "@/content/team";
+import { cn } from "@/lib/cn";
 
 export function TeamTeaser() {
   return (
@@ -26,7 +27,10 @@ export function TeamTeaser() {
                       alt={`${person.name} — ${person.classInfo}`}
                       fill
                       sizes="(max-width: 640px) 100vw, 33vw"
-                      className="object-cover object-top"
+                      className={cn(
+                        "object-cover",
+                        person.photoClass ?? "object-top",
+                      )}
                     />
                   </div>
                 ) : null}

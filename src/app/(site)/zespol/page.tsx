@@ -51,7 +51,10 @@ export default function TeamPage() {
                         alt={`${member.name} — zdjęcie turniejowe, ${member.classInfo}`}
                         fill
                         sizes="(max-width: 768px) 100vw, 50vw"
-                        className="object-cover object-top"
+                        className={cn(
+                          "object-cover",
+                          member.photoClass ?? "object-top",
+                        )}
                       />
                     </div>
                   ) : null}

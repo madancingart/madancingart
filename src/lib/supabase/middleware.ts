@@ -44,8 +44,8 @@ export async function updateSession(request: NextRequest) {
     },
   );
 
-  const { data } = await supabase.auth.getClaims();
-  const hasSession = Boolean(data?.claims);
+  const { data } = await supabase.auth.getUser();
+  const hasSession = Boolean(data.user);
 
   const path = request.nextUrl.pathname;
   const isAdminArea = path === "/admin" || path.startsWith("/admin/");

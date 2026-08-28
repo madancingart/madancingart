@@ -1,6 +1,6 @@
 import { ChevronDown } from "lucide-react";
 import Image from "next/image";
-import heroImage from "@/assets/hero/hero.jpg";
+import heroImage from "@/assets/gallery/turnieje/img-0699.jpg";
 import { Button } from "@/components/ui/Button";
 import { Container } from "@/components/ui/Container";
 import { Reveal } from "@/components/ui/Reveal";
@@ -10,14 +10,14 @@ export function Hero() {
     <section className="relative -mt-16 h-[100svh] min-h-[560px]">
       <Image
         src={heroImage}
-        alt="Para latino M&A Dancing Art na parkiecie turniejowym"
+        alt="Aleksandra Janosz w zielonej sukni na parkiecie turniejowym"
         fill
         priority
         fetchPriority="high"
         quality={70}
         placeholder="blur"
         sizes="100vw"
-        className="object-cover object-center"
+        className="object-cover object-[center_30%]"
       />
       <div
         className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/90 from-10% via-black/40 to-transparent"

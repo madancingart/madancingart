@@ -159,7 +159,6 @@ function EventsManagerInner({ events }: { events: AdminEventListItem[] }) {
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <Button
-                    type="button"
                     size="sm"
                     variant="outline"
                     href={`/admin/eventy?id=${item.id}`}
