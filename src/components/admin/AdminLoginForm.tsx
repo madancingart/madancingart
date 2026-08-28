@@ -46,8 +46,12 @@ export function AdminLoginForm({ denied = false }: { denied?: boolean }) {
       // Pełne przeładowanie: ciasteczko sesji musi być w pierwszym requeście do /admin.
       // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- sesja Supabase w cookie
       window.location.assign("/admin");
-    } catch {
-      setError("Nie udało się zalogować. Sprawdź połączenie i spróbuj ponownie.");
+    } catch (cause) {
+      const message =
+        cause instanceof Error && cause.message.includes("NEXT_PUBLIC_SUPABASE")
+          ? cause.message
+          : "Nie udało się zalogować. Sprawdź połączenie i spróbuj ponownie.";
+      setError(message);
       setSubmitting(false);
     }
   }
