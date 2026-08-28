@@ -24,13 +24,27 @@ Skopiuj `.env.local.example` do `.env.local` i uzupełnij wartości.
 | Zmienna | Skąd wziąć |
 | --- | --- |
 | `NEXT_PUBLIC_SUPABASE_URL` | Projekt w [Supabase](https://supabase.com) → Project Settings → Data API → Project URL |
-| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Tamże → Publishable key (klucz publiczny, wolno w przeglądarce) |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Tamże → Publishable key (klucz publiczny, wolno w przeglądarce). Działa też starsza nazwa `NEXT_PUBLIC_SUPABASE_ANON_KEY`. |
 | `SUPABASE_SERVICE_ROLE_KEY` | Tamże → Secret keys → `service_role` (tylko serwer, nigdy `NEXT_PUBLIC_*`) |
 | `RESEND_API_KEY` | [Resend](https://resend.com) → API Keys |
 | `STRIPE_SECRET_KEY` | [Stripe](https://dashboard.stripe.com) → Developers → API keys (tylko serwer) |
 | `STRIPE_WEBHOOK_SECRET` | Stripe → Developers → Webhooks (endpoint signing secret) |
 | `NEXT_PUBLIC_PAYMENTS_ENABLED` | `false` do czasu włączenia płatności |
 | `NEXT_PUBLIC_SITE_URL` | Publiczny adres strony, lokalnie `http://localhost:3000` |
+
+### Vercel
+
+W **Project → Settings → Environment Variables** ustaw co najmniej:
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (lub `NEXT_PUBLIC_SUPABASE_ANON_KEY`)
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `NEXT_PUBLIC_SITE_URL` (np. `https://twoja-domena.pl`)
+- `RESEND_API_KEY` (maile z zapisów)
+
+Bez Supabase middleware nie wywali strony, ale **grafik, zapisy i panel admina nie zadziałają** — brak kluczy = błąd w Server Components / API.
+
+Po dodaniu zmiennych: **Deployments → Redeploy** (env ładują się przy buildzie).
 
 ## Supabase (migracje)
 
@@ -45,6 +59,8 @@ npx supabase db push
 Hasło bazy: Dashboard → Project Settings → Database.
 
 ### Admini
+
+Panel loguje się loginem **`admin`** (mapowane na `admin@madancingart.pl` w Supabase Auth) albo pełnym e-mailem z tabeli `admins`.
 
 1. Authentication → Users → Add user (np. Twoje konto i konto Oli).
 2. SQL editor:

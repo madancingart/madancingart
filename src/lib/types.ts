@@ -63,9 +63,9 @@ export type BookingRow = {
   recurring_class_id: string | null;
   event_id: string | null;
   first_name: string;
-  last_name: string;
-  phone: string;
-  email: string;
+  last_name: string | null;
+  phone: string | null;
+  email: string | null;
   message: string | null;
   dance_type: string | null;
   status: BookingStatus;

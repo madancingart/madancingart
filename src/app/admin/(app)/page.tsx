@@ -33,6 +33,22 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
 
   return (
     <div className="flex flex-col gap-6">
+      <div className="grid grid-cols-2 gap-3">
+        <article className="border border-white/10 bg-black-soft p-4">
+          <p className="text-[12px] text-muted">Dzisiejsze pozycje</p>
+          <p className="mt-1 text-2xl text-gold">{data.todayCount}</p>
+        </article>
+        <article className="border border-white/10 bg-black-soft p-4">
+          <p className="text-[12px] text-muted">Oczekujące zapisy</p>
+          <p className="mt-1 text-2xl text-gold">{data.pendingCount}</p>
+          <Link
+            href="/admin/zapisy?status=pending"
+            className="mt-2 inline-block text-[12px] text-muted hover:text-gold"
+          >
+            Otwórz listę
+          </Link>
+        </article>
+      </div>
       <div className="flex flex-wrap gap-2">
         <Link
           href="/admin/kalendarz?nowy=slot"

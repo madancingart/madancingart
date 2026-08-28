@@ -10,7 +10,11 @@ export function AdminLocationTabs() {
   const searchParams = useSearchParams();
   const raw = searchParams.get("lokalizacja");
   const active: LocationId | "all" =
-    raw === "mikolow" || raw === "lubliniec" ? raw : "all";
+    raw === "mikolow" || raw === "lubliniec"
+      ? raw
+      : pathname.startsWith("/admin/kalendarz")
+        ? "mikolow"
+        : "all";
 
   const items: { id: LocationId | "all"; label: string }[] =
     pathname.startsWith("/admin/kalendarz")
@@ -39,6 +43,7 @@ export function AdminLocationTabs() {
         } else {
           params.set("lokalizacja", item.id);
         }
+        params.delete("nowy");
         const query = params.toString();
         const href = query ? `${pathname}?${query}` : pathname;
         const isActive = active === item.id;

@@ -7,9 +7,9 @@ import type {
 export type AdminBooking = {
   id: string;
   firstName: string;
-  lastName: string;
-  phone: string;
-  email: string;
+  lastName: string | null;
+  phone: string | null;
+  email: string | null;
   message: string | null;
   danceType: string | null;
   status: BookingStatus;

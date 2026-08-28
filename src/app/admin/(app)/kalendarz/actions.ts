@@ -19,6 +19,7 @@ function fail(error: string): ActionResult {
 
 function revalidateCalendar() {
   revalidatePath("/admin/kalendarz");
+  revalidatePath("/admin/zapisy");
   revalidatePath("/grafik");
   revalidatePath("/admin");
 }
@@ -60,6 +61,28 @@ export async function cancelBooking(input: unknown): Promise<ActionResult> {
       return fail("Nie znaleziono zapisu.");
     }
     return fail("Nie udało się anulować zapisu.");
+  }
+
+  revalidateCalendar();
+  return { ok: true };
+}
+
+export async function anonymizeBooking(input: unknown): Promise<ActionResult> {
+  const parsed = bookingIdSchema.safeParse(input);
+  if (!parsed.success) {
+    return fail("Niepoprawny identyfikator zapisu.");
+  }
+
+  const { supabase } = await requireAdmin();
+  const { error } = await supabase.rpc("admin_anonymize_booking", {
+    p_booking_id: parsed.data.bookingId,
+  });
+
+  if (error) {
+    if (error.message.includes("booking_not_found")) {
+      return fail("Nie znaleziono zapisu.");
+    }
+    return fail("Nie udało się usunąć danych.");
   }
 
   revalidateCalendar();

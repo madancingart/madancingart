@@ -1,8 +1,9 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { type FormEvent, useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { resolveAdminLogin } from "@/lib/admin/login";
 import { createClient } from "@/lib/supabase/client";
 
 function polishAuthError(message: string): string {
@@ -19,15 +20,11 @@ function polishAuthError(message: string): string {
   return "Nie udało się zalogować. Spróbuj ponownie.";
 }
 
-export function AdminLoginForm() {
+export function AdminLoginForm({ denied = false }: { denied?: boolean }) {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const denied = searchParams.get("blad") === "uprawnienia";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState(
-    denied ? "Brak uprawnień." : "",
-  );
+  const [error, setError] = useState(denied ? "Brak uprawnień." : "");
   const [submitting, setSubmitting] = useState(false);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
@@ -37,7 +34,7 @@ export function AdminLoginForm() {
 
     const supabase = createClient();
     const { error: authError } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
+      email: resolveAdminLogin(email),
       password,
     });
 
@@ -61,13 +58,14 @@ export function AdminLoginForm() {
 
       <div>
         <label htmlFor="admin-email" className="mb-1 block text-sm text-cream">
-          E-mail
+          Login
         </label>
         <input
           id="admin-email"
-          type="email"
+          type="text"
           autoComplete="username"
           required
+          placeholder="admin"
           value={email}
           onChange={(event) => setEmail(event.target.value)}
           className="min-h-11 w-full border border-white/15 bg-black px-3 text-cream"

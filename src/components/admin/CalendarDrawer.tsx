@@ -63,7 +63,11 @@ export function CalendarDrawer({
   const ref = useRef<HTMLDialogElement>(null);
   const [confirm, setConfirm] = useState<ConfirmState | null>(null);
   const [pending, setPending] = useState(false);
-  const [capacity, setCapacity] = useState(12);
+
+  function closeDrawer() {
+    setConfirm(null);
+    onClose();
+  }
 
   useEffect(() => {
     const node = ref.current;
@@ -77,12 +81,6 @@ export function CalendarDrawer({
       node.close();
     }
   }, [open]);
-
-  useEffect(() => {
-    if (target?.kind === "class") {
-      setCapacity(target.item.capacity);
-    }
-  }, [target]);
 
   async function run(action: () => Promise<ActionResult>, closeDrawer = false) {
     setPending(true);
@@ -100,12 +98,12 @@ export function CalendarDrawer({
         onCancel={(event) => {
           event.preventDefault();
           if (!pending) {
-            onClose();
+            closeDrawer();
           }
         }}
         onClick={(event) => {
           if (event.target === ref.current && !pending) {
-            onClose();
+            closeDrawer();
           }
         }}
       >
@@ -118,7 +116,7 @@ export function CalendarDrawer({
             </h2>
             <button
               type="button"
-              onClick={onClose}
+              onClick={closeDrawer}
               className="flex size-11 items-center justify-center text-cream"
               aria-label="Zamknij panel"
             >
@@ -129,9 +127,8 @@ export function CalendarDrawer({
           <div className="relative flex-1 overflow-y-auto px-4 py-4">
             {target?.kind === "class" ? (
               <ClassPanel
+                key={target.item.id}
                 item={target.item}
-                capacity={capacity}
-                setCapacity={setCapacity}
                 pending={pending}
                 onToggleSignup={() =>
                   run(() =>
@@ -142,12 +139,12 @@ export function CalendarDrawer({
                     }),
                   )
                 }
-                onSaveCapacity={() =>
+                onSaveCapacity={(nextCapacity) =>
                   run(() =>
                     updateClassSettings({
                       classId: target.item.id,
                       signupOpen: target.item.signupOpen,
-                      capacity,
+                      capacity: nextCapacity,
                     }),
                   )
                 }
@@ -201,6 +198,41 @@ export function CalendarDrawer({
                 }
               />
             ) : null}
+
+            {confirm ? (
+              <div className="absolute inset-0 z-20 flex items-end bg-black/80 p-4 sm:items-center">
+                <div className="w-full border border-white/10 bg-black-soft p-4">
+                  <h3 className="text-[15px] font-semibold text-cream">
+                    {confirm.title}
+                  </h3>
+                  <p className="mt-2 text-[14px] text-muted">{confirm.body}</p>
+                  <div className="mt-4 flex justify-end gap-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      disabled={pending}
+                      onClick={() => setConfirm(null)}
+                    >
+                      Wróć
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled={pending}
+                      onClick={() => {
+                        void run(
+                          confirm.run,
+                          confirm.confirmLabel === "Usuń slot",
+                        );
+                      }}
+                    >
+                      {confirm.confirmLabel}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ) : null}
           </div>
         </div>
       </dialog>
@@ -210,8 +242,6 @@ export function CalendarDrawer({
 
 function ClassPanel({
   item,
-  capacity,
-  setCapacity,
   pending,
   onToggleSignup,
   onSaveCapacity,
@@ -219,16 +249,13 @@ function ClassPanel({
   onCancel,
 }: {
   item: AdminClass;
-  capacity: number;
-  setCapacity: (value: number) => void;
   pending: boolean;
   onToggleSignup: () => void;
-  onSaveCapacity: () => void;
+  onSaveCapacity: (capacity: number) => void;
   onConfirm: (booking: AdminBooking) => void;
   onCancel: (booking: AdminBooking) => void;
 }) {
-  const active = item.bookings.filter((row) => row.status !== "cancelled");
-
+  const [capacity, setCapacity] = useState(item.capacity);
   return (
     <div className="flex flex-col gap-5">
       <p className="text-[13px] text-muted">
@@ -267,7 +294,7 @@ function ClassPanel({
             size="sm"
             variant="outline"
             disabled={pending || capacity === item.capacity}
-            onClick={onSaveCapacity}
+            onClick={() => onSaveCapacity(capacity)}
           >
             Zapisz
           </Button>
@@ -284,8 +311,7 @@ function ClassPanel({
               className="border border-white/10 bg-black-soft p-3"
             >
               <BookingIdentity booking={booking} />
-              {booking.status !== "cancelled" &&
-              active.some((row) => row.id === booking.id) ? (
+              {booking.status !== "cancelled" ? (
                 <div className="mt-3 flex flex-wrap gap-2">
                   {booking.status === "pending" ? (
                     <Button
@@ -433,22 +459,31 @@ function SlotPanel({
 }
 
 function BookingIdentity({ booking }: { booking: AdminBooking }) {
+  const phone = booking.phone;
+  const email = booking.email;
+
   return (
     <div>
       <p className="text-cream">
-        {booking.firstName} {booking.lastName}
+        {booking.firstName}
+        {booking.lastName ? ` ${booking.lastName}` : ""}
       </p>
       <p className="mt-1 text-[13px]">
-        <a href={telHref(booking.phone)} className="text-gold hover:text-gold-light">
-          {booking.phone}
-        </a>
+        {phone ? (
+          <a href={telHref(phone)} className="text-gold hover:text-gold-light">
+            {phone}
+          </a>
+        ) : (
+          <span className="text-muted">brak telefonu</span>
+        )}
         {" · "}
-        <a
-          href={`mailto:${booking.email}`}
-          className="text-gold hover:text-gold-light"
-        >
-          {booking.email}
-        </a>
+        {email ? (
+          <a href={`mailto:${email}`} className="text-gold hover:text-gold-light">
+            {email}
+          </a>
+        ) : (
+          <span className="text-muted">brak e-maila</span>
+        )}
       </p>
       <p className="mt-1 text-[12px] text-muted">
         {bookingStatusLabel(booking.status)} · zapis{" "}

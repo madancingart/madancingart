@@ -3,6 +3,7 @@ import { AdminWeekCalendar } from "@/components/admin/AdminWeekCalendar";
 import { getAdminCalendar } from "@/lib/admin/get-calendar";
 import { requireAdmin } from "@/lib/admin/require-admin";
 import { nowInWarsaw } from "@/lib/datetime";
+import { site } from "@/content/site";
 import type { LocationId } from "@/content/site";
 
 export const dynamic = "force-dynamic";
@@ -48,9 +49,12 @@ export default async function AdminCalendarPage({ searchParams }: PageProps) {
   const nowIso = now.toISOString();
   const data = await getAdminCalendar(supabase, location, nowIso, weekOffset);
 
+  const city =
+    site.locations.find((item) => item.id === location)?.city ?? location;
+
   return (
     <div>
-      <h1 className="sr-only">Kalendarz — {location}</h1>
+      <h1 className="sr-only">Kalendarz — {city}</h1>
       <AdminWeekCalendar
         locationId={location}
         nowIso={nowIso}

@@ -51,6 +51,7 @@ export async function getAdminDashboard(
   selected: LocationId | "all",
 ): Promise<{
   today: TodayItem[];
+  todayCount: number;
   pending: PendingBooking[];
   pendingCount: number;
 }> {
@@ -87,14 +88,14 @@ export async function getAdminDashboard(
       .lte("starts_at", end.toISOString())
       .order("starts_at", { ascending: true }),
     supabase
-      .from("bookings")
-      .select("id,first_name,last_name,kind,created_at,status")
+      .from("admin_booking_list")
+      .select("id,first_name,last_name,kind,created_at,status,location_id")
       .eq("status", "pending")
       .order("created_at", { ascending: false })
-      .limit(8),
+      .limit(40),
     supabase
-      .from("bookings")
-      .select("id", { count: "exact", head: true })
+      .from("admin_booking_list")
+      .select("id,location_id", { count: "exact" })
       .eq("status", "pending"),
   ]);
 
@@ -172,17 +173,26 @@ export async function getAdminDashboard(
 
   today.sort((a, b) => a.sortKey - b.sortKey);
 
-  const pending: PendingBooking[] = (pendingResult.data ?? []).map((row) => ({
+  const pendingFiltered = (pendingResult.data ?? []).filter((row) =>
+    filterLocation((row.location_id as string | null) ?? null, selected),
+  );
+
+  const pending: PendingBooking[] = pendingFiltered.slice(0, 8).map((row) => ({
     id: row.id as string,
-    name: `${row.first_name as string} ${row.last_name as string}`,
+    name: `${row.first_name as string} ${row.last_name as string | null ?? ""}`.trim(),
     kind: row.kind as BookingKind,
     createdAt: row.created_at as string,
     status: row.status as BookingStatus,
   }));
 
+  const pendingCount = (pendingCountResult.data ?? []).filter((row) =>
+    filterLocation((row.location_id as string | null) ?? null, selected),
+  ).length;
+
   return {
     today,
+    todayCount: today.length,
     pending,
-    pendingCount: pendingCountResult.count ?? pending.length,
+    pendingCount,
   };
 }

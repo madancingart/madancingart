@@ -11,6 +11,13 @@ export function mapBookingError(raw: string): {
         "Ktoś właśnie zarezerwował ten termin. Odśwież grafik i wybierz inny.",
     };
   }
+  if (text.includes("event_full")) {
+    return {
+      status: 409,
+      message:
+        "Brak wolnych miejsc na to wydarzenie. Napisz do nas — spróbujemy znaleźć rozwiązanie.",
+    };
+  }
   if (text.includes("class_full")) {
     return {
       status: 409,

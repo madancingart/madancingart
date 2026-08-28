@@ -397,7 +397,10 @@ function Tile({
     <button
       type="button"
       data-tile
-      onClick={onClick}
+      onClick={(event) => {
+        event.stopPropagation();
+        onClick();
+      }}
       className={cn(
         "absolute right-0.5 left-0.5 z-10 overflow-hidden border px-1.5 py-1 text-left",
         className,
