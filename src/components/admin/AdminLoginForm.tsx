@@ -2,22 +2,7 @@
 
 import { type FormEvent, useState } from "react";
 import { Button } from "@/components/ui/Button";
-import { resolveAdminLogin } from "@/lib/admin/login";
-import { createClient } from "@/lib/supabase/client";
-
-function polishAuthError(message: string): string {
-  const lower = message.toLowerCase();
-  if (lower.includes("invalid login") || lower.includes("invalid_credentials")) {
-    return "Nieprawidłowy e-mail lub hasło.";
-  }
-  if (lower.includes("email not confirmed")) {
-    return "Potwierdź adres e-mail, zanim się zalogujesz.";
-  }
-  if (lower.includes("too many")) {
-    return "Zbyt wiele prób. Spróbuj za chwilę.";
-  }
-  return "Nie udało się zalogować. Spróbuj ponownie.";
-}
+import { signInAdmin } from "@/app/admin/login/actions";
 
 export function AdminLoginForm({ denied = false }: { denied?: boolean }) {
   const [email, setEmail] = useState("");
@@ -30,29 +15,10 @@ export function AdminLoginForm({ denied = false }: { denied?: boolean }) {
     setSubmitting(true);
     setError("");
 
-    try {
-      const supabase = createClient();
-      const { error: authError } = await supabase.auth.signInWithPassword({
-        email: resolveAdminLogin(email),
-        password,
-      });
-
-      if (authError) {
-        setError(polishAuthError(authError.message));
-        setSubmitting(false);
-        return;
-      }
-
-      // Pełne przeładowanie: ciasteczko sesji musi być w pierwszym requeście do /admin.
-      // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- sesja Supabase w cookie
-      window.location.assign("/admin");
-    } catch (cause) {
-      const message =
-        cause instanceof Error && cause.message.includes("NEXT_PUBLIC_SUPABASE")
-          ? cause.message
-          : "Nie udało się zalogować. Sprawdź połączenie i spróbuj ponownie.";
-      setError(message);
-      setSubmitting(false);
+    const result = await signInAdmin(email, password);
+    setSubmitting(false);
+    if (result && !result.ok) {
+      setError(result.error);
     }
   }
 

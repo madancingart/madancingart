@@ -1,5 +1,5 @@
 function requireEnv(name: string, fallback?: string): string {
-  const value = process.env[name] ?? fallback;
+  const value = (process.env[name] ?? fallback)?.trim();
   if (!value) {
     throw new Error(`Brak zmiennej środowiskowej ${name}`);
   }

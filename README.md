@@ -42,6 +42,8 @@ W **Project → Settings → Environment Variables** ustaw co najmniej:
 - `NEXT_PUBLIC_SITE_URL` (np. `https://twoja-domena.pl`)
 - `RESEND_API_KEY` (maile z zapisów)
 
+`NEXT_PUBLIC_*` muszą być w buildzie — po dodaniu zmiennych: **Redeploy**. Sam Site URL / Redirect URLs w Supabase (Authentication → URL Configuration) ustaw na adres Vercela, np. `https://twoja-domena.vercel.app` oraz `https://twoja-domena.vercel.app/**`.
+
 Bez Supabase middleware nie wywali strony, ale **grafik, zapisy i panel admina nie zadziałają** — brak kluczy = błąd w Server Components / API.
 
 Po dodaniu zmiennych: **Deployments → Redeploy** (env ładują się przy buildzie).

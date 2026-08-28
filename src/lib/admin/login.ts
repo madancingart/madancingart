@@ -8,3 +8,17 @@ export function resolveAdminLogin(value: string): string {
   }
   return trimmed;
 }
+
+export function polishAuthError(message: string): string {
+  const lower = message.toLowerCase();
+  if (lower.includes("invalid login") || lower.includes("invalid_credentials")) {
+    return "Nieprawidłowy e-mail lub hasło.";
+  }
+  if (lower.includes("email not confirmed")) {
+    return "Potwierdź adres e-mail, zanim się zalogujesz.";
+  }
+  if (lower.includes("too many")) {
+    return "Zbyt wiele prób. Spróbuj za chwilę.";
+  }
+  return "Nie udało się zalogować. Spróbuj ponownie.";
+}
