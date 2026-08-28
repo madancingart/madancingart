@@ -12,13 +12,19 @@ export function AdminLocationTabs() {
   const active: LocationId | "all" =
     raw === "mikolow" || raw === "lubliniec" ? raw : "all";
 
-  const items: { id: LocationId | "all"; label: string }[] = [
-    { id: "all", label: "Obie" },
-    ...site.locations.map((location) => ({
-      id: location.id,
-      label: location.city,
-    })),
-  ];
+  const items: { id: LocationId | "all"; label: string }[] =
+    pathname.startsWith("/admin/kalendarz")
+      ? site.locations.map((location) => ({
+          id: location.id,
+          label: location.city,
+        }))
+      : [
+          { id: "all", label: "Obie" },
+          ...site.locations.map((location) => ({
+            id: location.id,
+            label: location.city,
+          })),
+        ];
 
   return (
     <div
@@ -27,10 +33,14 @@ export function AdminLocationTabs() {
       className="flex gap-4 border-b border-white/10 text-[13px]"
     >
       {items.map((item) => {
-        const href =
-          item.id === "all"
-            ? pathname
-            : `${pathname}?lokalizacja=${item.id}`;
+        const params = new URLSearchParams(searchParams.toString());
+        if (item.id === "all") {
+          params.delete("lokalizacja");
+        } else {
+          params.set("lokalizacja", item.id);
+        }
+        const query = params.toString();
+        const href = query ? `${pathname}?${query}` : pathname;
         const isActive = active === item.id;
 
         return (

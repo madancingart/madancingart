@@ -1,7 +1,11 @@
 import type { SiteLocation } from "@/content/site";
 
 export function telHref(phone: string): string {
-  return `tel:+48${phone.replaceAll(" ", "")}`;
+  const compact = phone.replaceAll(" ", "");
+  if (compact.startsWith("+")) {
+    return `tel:${compact}`;
+  }
+  return `tel:+48${compact.replace(/^\+?48/, "")}`;
 }
 
 export function googleMapsUrl(location: SiteLocation): string {

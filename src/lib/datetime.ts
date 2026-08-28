@@ -151,6 +151,27 @@ export function formatTimeRange(start: Date, end: Date): string {
   return `${formatClock(start)}–${formatClock(end)}`;
 }
 
+export function formatDateTimeWarsaw(iso: string): string {
+  const date = toWarsaw(iso);
+  const dd = String(date.getDate()).padStart(2, "0");
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  return `${dd}.${mm}.${date.getFullYear()}, ${formatClock(date)}`;
+}
+
+export function toDatetimeLocalValue(date: Date): string {
+  const year = String(date.getFullYear());
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}T${formatClock(date)}`;
+}
+
+export function fromDatetimeLocal(value: string): TZDate {
+  const [datePart = "", timePart = "00:00"] = value.split("T");
+  const [year, month, day] = datePart.split("-").map((part) => Number(part));
+  const { hours, minutes } = parseTimeParts(timePart);
+  return new TZDate(year, month - 1, day, hours, minutes, WARSAW_TZ);
+}
+
 const WEEKDAY_LONG = [
   "poniedziałek",
   "wtorek",

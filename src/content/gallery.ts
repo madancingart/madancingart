@@ -10,13 +10,28 @@ import type { StaticImageData } from "next/image";
 import pokazParaStandard from "@/assets/gallery/pokazy/92ac4275-b27d-4960-97c9-7125dc76fd66.jpg";
 import pokazImg1945 from "@/assets/gallery/pokazy/img-1945.jpg";
 import pokazImg5339 from "@/assets/gallery/pokazy/img-5339.jpg";
+import pokazPierwszyTaniec1 from "@/assets/gallery/pokazy/pierwszy-taniec-1.jpg";
+import pokazPierwszyTaniec2 from "@/assets/gallery/pokazy/pierwszy-taniec-2.jpg";
+import pokaz1 from "@/assets/gallery/pokazy/pokazy-1.jpg";
+import pokaz2 from "@/assets/gallery/pokazy/pokazy-2.jpg";
 import salaImg0694 from "@/assets/gallery/sale/img-0694.jpg";
+import salaLubliniec from "@/assets/gallery/sale/lubliniec.jpg";
+import salaMikolowElewacja from "@/assets/gallery/sale/mikolow-elewacja.jpg";
+import salaMikolow from "@/assets/gallery/sale/mikolow-sala.jpg";
 import turniejImg0698 from "@/assets/gallery/turnieje/img-0698.jpg";
 import turniejImg0699 from "@/assets/gallery/turnieje/img-0699.jpg";
 import turniejImg1946 from "@/assets/gallery/turnieje/img-1946.jpg";
 import turniejImg1947 from "@/assets/gallery/turnieje/img-1947.jpg";
 import turniejImg4567 from "@/assets/gallery/turnieje/img-4567.jpg";
 import turniejImg4569 from "@/assets/gallery/turnieje/img-4569.jpg";
+import turniejMikolaj1 from "@/assets/gallery/turnieje/mikolaj-turniej-1.jpg";
+import turniejMikolaj2 from "@/assets/gallery/turnieje/mikolaj-turniej-2.jpg";
+import zajeciaDzieci from "@/assets/gallery/zajecia/dzieci.jpg";
+import zajeciaLatino from "@/assets/gallery/zajecia/latino-solo.jpg";
+import zajeciaLatino2 from "@/assets/gallery/zajecia/latino-solo-2.jpg";
+import zajeciaLatino3 from "@/assets/gallery/zajecia/latino-solo-3.jpg";
+import zajeciaUzytkowy1 from "@/assets/gallery/zajecia/taniec-uzytkowy-1.jpg";
+import zajeciaUzytkowy2 from "@/assets/gallery/zajecia/taniec-uzytkowy-2.jpg";
 
 export const GALLERY_CATEGORIES = [
   { id: "turnieje", label: "Turnieje" },
@@ -41,6 +56,18 @@ export type GalleryImage = {
 };
 
 export const turnieje: GalleryImage[] = [
+  {
+    id: "turnieje-mikolaj-2",
+    src: turniejMikolaj2,
+    alt: "Para latino na parkiecie turniejowym — tancerka w niebieskiej sukni z frędzlami",
+    category: "turnieje",
+  },
+  {
+    id: "turnieje-mikolaj-1",
+    src: turniejMikolaj1,
+    alt: "Para latino w dynamicznej pozie turniejowej — tancerka w czerwonej sukni",
+    category: "turnieje",
+  },
   {
     id: "turnieje-img-0699",
     src: turniejImg0699,
@@ -79,9 +106,64 @@ export const turnieje: GalleryImage[] = [
   },
 ];
 
-export const zajecia: GalleryImage[] = [];
+export const zajecia: GalleryImage[] = [
+  {
+    id: "zajecia-dzieci",
+    src: zajeciaDzieci,
+    alt: "Zajęcia dla dzieci w sali M&A Dancing Art — instruktor z grupą dziewczynek przy lustrze",
+    category: "zajecia",
+  },
+  {
+    id: "zajecia-latino-solo",
+    src: zajeciaLatino,
+    alt: "Zajęcia latino solo — grupa pań z instruktorem przy lustrze",
+    category: "zajecia",
+  },
+  {
+    id: "zajecia-latino-solo-2",
+    src: zajeciaLatino2,
+    alt: "Zajęcia latino solo w sali szkoły tańca w Mikołowie",
+    category: "zajecia",
+  },
+  {
+    id: "zajecia-latino-solo-3",
+    src: zajeciaLatino3,
+    alt: "Tancerka latino w pomarańczowej sukni na parkiecie",
+    category: "zajecia",
+  },
+  {
+    id: "zajecia-uzytkowy-2",
+    src: zajeciaUzytkowy2,
+    alt: "Para w tańcu użytkowym na parkiecie podczas imprezy",
+    category: "zajecia",
+  },
+  {
+    id: "zajecia-uzytkowy-1",
+    src: zajeciaUzytkowy1,
+    alt: "Uczestnicy zajęć tańca użytkowego na imprezie tanecznej",
+    category: "zajecia",
+  },
+];
 
 export const sale: GalleryImage[] = [
+  {
+    id: "sale-mikolow-sala",
+    src: salaMikolow,
+    alt: "Sala taneczna M&A Dancing Art w Mikołowie — parkiet, lustra i światło",
+    category: "sale",
+  },
+  {
+    id: "sale-mikolow-elewacja",
+    src: salaMikolowElewacja,
+    alt: "Wejście do szkoły tańca M&A Dancing Art w Mikołowie przy Centrum Sportu",
+    category: "sale",
+  },
+  {
+    id: "sale-lubliniec",
+    src: salaLubliniec,
+    alt: "Recepcja szkoły tańca M&A Dancing Art w Lublińcu",
+    category: "sale",
+  },
   {
     id: "sale-img-0694",
     src: salaImg0694,
@@ -91,6 +173,30 @@ export const sale: GalleryImage[] = [
 ];
 
 export const pokazy: GalleryImage[] = [
+  {
+    id: "pokazy-2",
+    src: pokaz2,
+    alt: "Pokaz pary latino — tancerka w czerwonej sukni na imprezie",
+    category: "pokazy",
+  },
+  {
+    id: "pokazy-1",
+    src: pokaz1,
+    alt: "Pokaz latino — trzech tancerzy na parkiecie podczas imprezy",
+    category: "pokazy",
+  },
+  {
+    id: "pokazy-pierwszy-taniec-1",
+    src: pokazPierwszyTaniec1,
+    alt: "Pierwszy taniec weselny — para w chmurze suchego lodu",
+    category: "pokazy",
+  },
+  {
+    id: "pokazy-pierwszy-taniec-2",
+    src: pokazPierwszyTaniec2,
+    alt: "Pierwszy taniec weselny — pan młody unosi pannę młodą na parkiecie",
+    category: "pokazy",
+  },
   {
     id: "pokazy-img-5339",
     src: pokazImg5339,

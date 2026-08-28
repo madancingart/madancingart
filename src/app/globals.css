@@ -97,3 +97,44 @@ body {
   display: block;
   margin: auto;
 }
+
+.confirm-dialog {
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.confirm-dialog::backdrop {
+  background: rgb(0 0 0 / 0.7);
+}
+
+.confirm-dialog[open] {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+.admin-drawer {
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.admin-drawer::backdrop {
+  background: rgb(0 0 0 / 0.55);
+}
+
+.admin-drawer[open] {
+  display: flex;
+  justify-content: flex-end;
+  width: 100%;
+  height: 100%;
+}

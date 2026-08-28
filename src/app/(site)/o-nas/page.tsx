@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import type { StaticImageData } from "next/image";
 import Image from "next/image";
-import salaHero from "@/assets/gallery/mikolow.jpg";
+import salaHero from "@/assets/gallery/sale/mikolow-sala.jpg";
 import lubliniecImage from "@/assets/gallery/lubliniec.jpg";
 import mikolowImage from "@/assets/gallery/mikolow.jpg";
 import { Button } from "@/components/ui/Button";
@@ -35,7 +35,7 @@ export default function AboutPage() {
       <section className="relative -mt-16 min-h-[50svh]">
         <Image
           src={salaHero}
-          alt="Parkiet M&A Dancing Art — zajęcia w Mikołowie"
+          alt="Sala taneczna M&A Dancing Art w Mikołowie"
           fill
           priority
           sizes="100vw"

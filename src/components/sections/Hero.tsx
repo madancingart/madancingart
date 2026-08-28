@@ -10,7 +10,7 @@ export function Hero() {
     <section className="relative -mt-16 h-[100svh] min-h-[560px]">
       <Image
         src={heroImage}
-        alt="Para taneczna M&A Dancing Art podczas występu na parkiecie"
+        alt="Para latino M&A Dancing Art na parkiecie turniejowym"
         fill
         priority
         fetchPriority="high"
