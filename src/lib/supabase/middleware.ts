@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import {
   getSupabasePublishableKey,
   getSupabaseUrl,
+  hasSupabaseEnv,
 } from "@/lib/supabase/env";
 
 function copyCookies(from: NextResponse, to: NextResponse) {
@@ -13,6 +14,11 @@ function copyCookies(from: NextResponse, to: NextResponse) {
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
+
+  // Bez env na Vercel nie wywalaj całej strony — publiczne podstrony mają działać.
+  if (!hasSupabaseEnv()) {
+    return supabaseResponse;
+  }
 
   const supabase = createServerClient(
     getSupabaseUrl(),
