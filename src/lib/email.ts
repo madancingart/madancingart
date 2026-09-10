@@ -15,6 +15,9 @@ export type BookingEmailPayload = {
   danceType: string | null;
   kindLabel: string;
   term: BookingTermSummary;
+  partnerFirstName: string | null;
+  partnerLastName: string | null;
+  guardianName: string | null;
 };
 
 function escapeHtml(value: string): string {
@@ -54,13 +57,13 @@ function wrap(inner: string): string {
 </html>`;
 }
 
-function clientHtml(payload: BookingEmailPayload): string {
+function clientHtml(payload: BookingEmailPayload, greetName: string): string {
   const { term } = payload;
   return wrap(`
     <p style="margin:0 0 4px;color:#C9962E;font-size:13px;letter-spacing:0.12em;">M&amp;A DANCING ART</p>
     <h1 style="margin:0 0 20px;font-size:22px;color:#F5EFE4;">Potwierdzenie zapisu</h1>
     <p style="margin:0 0 20px;color:#F5EFE4;line-height:1.5;">
-      Cześć ${escapeHtml(payload.firstName)}, przyjęliśmy Twój zapis. Oddzwonimy albo napiszemy, żeby dopiąć szczegóły.
+      Cześć ${escapeHtml(greetName)}, przyjęliśmy Twój zapis. Oddzwonimy albo napiszemy, żeby dopiąć szczegóły.
     </p>
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
       ${cell("Co", term.title)}
@@ -87,6 +90,19 @@ function schoolHtml(payload: BookingEmailPayload): string {
     cell("Telefon", payload.phone),
     cell("E-mail", payload.email),
   ];
+  if (payload.partnerFirstName || payload.partnerLastName) {
+    rows.splice(
+      4,
+      0,
+      cell(
+        "Partner",
+        `${payload.partnerFirstName ?? ""} ${payload.partnerLastName ?? ""}`.trim(),
+      ),
+    );
+  }
+  if (payload.guardianName) {
+    rows.splice(4, 0, cell("Rodzic / opiekun", payload.guardianName));
+  }
   if (payload.danceType) {
     rows.push(cell("Typ zajęć", payload.danceType));
   }
@@ -121,6 +137,10 @@ export async function sendBookingEmails(input: {
   email: string;
   message: string;
   danceType: string | null;
+  customerKind?: "adult" | "pair" | "child";
+  partnerFirstName: string | null;
+  partnerLastName: string | null;
+  guardianName: string | null;
   term: BookingTermSummary;
 }): Promise<void> {
   const apiKey = process.env.RESEND_API_KEY;
@@ -128,6 +148,11 @@ export async function sendBookingEmails(input: {
     console.error("Brak RESEND_API_KEY — pomijam wysyłkę maili po zapisie.");
     return;
   }
+
+  const greetName =
+    input.customerKind === "child" && input.guardianName
+      ? (input.guardianName.split(" ")[0] ?? input.firstName)
+      : input.firstName;
 
   const payload: BookingEmailPayload = {
     firstName: input.firstName,
@@ -138,6 +163,9 @@ export async function sendBookingEmails(input: {
     danceType: input.danceType,
     kindLabel: kindLabel(input.kind),
     term: input.term,
+    partnerFirstName: input.partnerFirstName,
+    partnerLastName: input.partnerLastName,
+    guardianName: input.guardianName,
   };
 
   const resend = new Resend(apiKey);
@@ -146,7 +174,7 @@ export async function sendBookingEmails(input: {
       from: FROM,
       to: input.email,
       subject: "Potwierdzenie zapisu — M&A Dancing Art",
-      html: clientHtml(payload),
+      html: clientHtml(payload, greetName),
     }),
     resend.emails.send({
       from: FROM,
@@ -160,5 +188,106 @@ export async function sendBookingEmails(input: {
     if (result.error) {
       console.error("Resend odrzucił wiadomość.", result.error);
     }
+  }
+}
+
+export type PackageEmailPayload = {
+  firstName: string;
+  lastName: string;
+  partnerFirstName: string;
+  partnerLastName: string;
+  phone: string;
+  email: string;
+  packageLabel: string;
+  weddingDateLabel: string;
+  songs: string[];
+  paid: boolean;
+};
+
+function packageRows(payload: PackageEmailPayload): string {
+  return [
+    cell("Pakiet", payload.packageLabel),
+    cell(
+      "Para",
+      `${payload.firstName} ${payload.lastName} i ${payload.partnerFirstName} ${payload.partnerLastName}`,
+    ),
+    cell("Telefon", payload.phone),
+    cell("E-mail", payload.email),
+    cell("Data wesela", payload.weddingDateLabel),
+    cell("Piosenki", payload.songs.join(" · ") || "—"),
+  ].join("");
+}
+
+function schoolPackageHtml(payload: PackageEmailPayload): string {
+  const status = payload.paid ? "opłacony" : "oczekuje na płatność";
+  return wrap(`
+    <p style="margin:0 0 4px;color:#C9962E;font-size:13px;letter-spacing:0.12em;">NOWY PAKIET</p>
+    <h1 style="margin:0 0 8px;font-size:22px;color:#F5EFE4;">${escapeHtml(payload.packageLabel)}</h1>
+    <p style="margin:0 0 20px;color:#9A948A;font-size:14px;">Status: ${escapeHtml(status)}</p>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+      ${packageRows(payload)}
+    </table>
+  `);
+}
+
+function couplePackageHtml(payload: PackageEmailPayload): string {
+  return wrap(`
+    <p style="margin:0 0 4px;color:#C9962E;font-size:13px;letter-spacing:0.12em;">M&amp;A DANCING ART</p>
+    <h1 style="margin:0 0 20px;font-size:22px;color:#F5EFE4;">Pakiet aktywny</h1>
+    <p style="margin:0 0 20px;color:#F5EFE4;line-height:1.5;">
+      Cześć ${escapeHtml(payload.firstName)} i ${escapeHtml(payload.partnerFirstName)},
+      pakiet „${escapeHtml(payload.packageLabel)}” jest aktywny. Skontaktujemy się,
+      by umówić pierwszą lekcję.
+    </p>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+      ${packageRows(payload)}
+    </table>
+    <p style="margin:24px 0 0;color:#F5EFE4;line-height:1.5;">
+      W razie pytań: <a href="tel:+48539143200" style="color:#C9962E;">${escapeHtml(site.phone)}</a>
+    </p>
+    <p style="margin:24px 0 0;color:#9A948A;font-size:12px;line-height:1.5;">
+      M&amp;A Dancing Art · Mikołów, ul. Świerkowa 3 · Lubliniec, ul. Oleska 85<br />
+      ${escapeHtml(site.email)}
+    </p>
+  `);
+}
+
+export async function sendNewPackageSchoolEmail(
+  payload: PackageEmailPayload,
+): Promise<void> {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    console.error("Brak RESEND_API_KEY — pomijam mail o nowym pakiecie.");
+    return;
+  }
+  const resend = new Resend(apiKey);
+  const result = await resend.emails.send({
+    from: FROM,
+    to: site.email,
+    subject: `Nowy pakiet: ${payload.firstName} ${payload.lastName} — ${payload.packageLabel}`,
+    html: schoolPackageHtml(payload),
+  });
+  if (result.error) {
+    console.error("Resend odrzucił wiadomość o pakiecie.", result.error);
+  }
+}
+
+export async function sendPackageActivatedCoupleEmail(
+  payload: PackageEmailPayload,
+): Promise<void> {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    console.error("Brak RESEND_API_KEY — pomijam mail aktywacji pakietu.");
+    return;
+  }
+  const resend = new Resend(apiKey);
+  const result = await resend.emails.send({
+    from: FROM,
+    to: payload.email,
+    subject: "Pakiet aktywny — umówimy pierwszą lekcję | M&A Dancing Art",
+    html: couplePackageHtml(payload),
+  });
+  if (result.error) {
+    console.error("Resend odrzucił wiadomość aktywacji pakietu.", result.error);
   }
 }

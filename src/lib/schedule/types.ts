@@ -11,6 +11,10 @@ export type ScheduleClass = {
   signupOpen: boolean;
   taken: number;
   capacity: number;
+  trainerId: string | null;
+  isPair: boolean;
+  slug: string;
+  cancelledDates: string[];
 };
 
 export type ScheduleSlot = {
@@ -21,6 +25,7 @@ export type ScheduleSlot = {
   status: "open" | "booked";
   initial: string | null;
   danceType: string | null;
+  trainerId: string | null;
 };
 
 export type ScheduleEvent = {
@@ -46,4 +51,6 @@ export type BookingTarget = {
   locationId: LocationId;
   startsAt: string;
   endsAt: string;
+  classSlug?: string | null;
+  isPair?: boolean;
 };

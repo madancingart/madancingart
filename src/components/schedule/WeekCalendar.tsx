@@ -14,8 +14,10 @@ import {
   formatTimeRange,
   formatWeekRange,
   toWarsaw,
+  warsawTodayIso,
   weekDaysFromIso,
 } from "@/lib/datetime";
+import { trainerAccent, trainerShortName } from "@/lib/trainers";
 import type { BookingTarget } from "@/lib/schedule/types";
 import type {
   ScheduleClass,
@@ -23,7 +25,7 @@ import type {
   ScheduleSlot,
 } from "@/lib/schedule/types";
 
-const MAX_WEEK_OFFSET = 3;
+const MAX_WEEK_OFFSET = 4;
 
 type WeekCalendarProps = {
   locationId: LocationId;
@@ -63,14 +65,19 @@ function bookedLabel(slot: ScheduleSlot): string {
   return "Zajęte";
 }
 
-function classStatus(item: ScheduleClass, start: Date, now: Date) {
+function classStatus(
+  item: ScheduleClass,
+  start: Date,
+  now: Date,
+  cancelled: boolean,
+) {
   const full = item.taken >= item.capacity;
   const past = isPast(start, now);
-  const canSignup = item.signupOpen && !full && !past;
+  const canSignup = item.signupOpen && !full && !past && !cancelled;
   const lastPlaces =
     canSignup && item.capacity > 0 && item.taken / item.capacity >= 0.8;
 
-  return { canSignup, lastPlaces };
+  return { canSignup, lastPlaces, cancelled };
 }
 
 export function WeekCalendar({
@@ -105,7 +112,10 @@ export function WeekCalendar({
 
       const start = classStartOnDay(day, item.startTime);
       const end = addMinutes(start, item.durationMin);
-      const status = classStatus(item, start, now);
+      const dateIso = warsawTodayIso(day);
+      const cancelled = item.cancelledDates.includes(dateIso);
+      const status = classStatus(item, start, now, cancelled);
+      const lead = trainerShortName(item.trainerId);
       const meta = [formatTimeRange(start, end), locationLabel, item.level]
         .filter(Boolean)
         .join(" · ");
@@ -125,13 +135,18 @@ export function WeekCalendar({
             {item.level ? (
               <p className="text-sm text-muted">{item.level}</p>
             ) : null}
-            <p className="text-sm text-muted">{formatTimeRange(start, end)}</p>
+            <p className="text-sm text-muted">
+              {formatTimeRange(start, end)}
+              {lead ? ` · ${lead}` : ""}
+            </p>
             {status.lastPlaces ? (
               <p className="text-xs tracking-wide text-gold">
                 Ostatnie miejsca
               </p>
             ) : null}
-            {status.canSignup ? (
+            {status.cancelled ? (
+              <p className="text-sm">Odwołane</p>
+            ) : status.canSignup ? (
               <Button
                 size="sm"
                 className="min-h-11 w-full"
@@ -144,6 +159,8 @@ export function WeekCalendar({
                     locationId,
                     startsAt: start.toISOString(),
                     endsAt: end.toISOString(),
+                    classSlug: item.slug,
+                    isPair: item.isPair,
                   })
                 }
               >
@@ -164,6 +181,9 @@ export function WeekCalendar({
       }
       const end = toWarsaw(slot.endsAt);
       const time = formatTimeRange(start, end);
+      const lead = trainerShortName(slot.trainerId);
+      const accent = trainerAccent(slot.trainerId);
+      const timeLine = lead ? `${time} · ${lead}` : time;
 
       if (slot.status === "open") {
         const title = "Wolny termin";
@@ -172,11 +192,14 @@ export function WeekCalendar({
         entries.push({
           sortKey: start.getHours() * 60 + start.getMinutes(),
           node: (
-            <article className="flex flex-col gap-2 border border-gold bg-black-soft p-3">
+            <article
+              className="flex flex-col gap-2 border border-gold bg-black-soft p-3"
+              style={accent ? { borderLeftWidth: 3, borderLeftColor: accent } : undefined}
+            >
               <p className="font-semibold text-gold">
                 Wolny termin — zarezerwuj
               </p>
-              <p className="text-sm text-muted">{time}</p>
+              <p className="text-sm text-muted">{timeLine}</p>
               {canBook ? (
                 <Button
                   size="sm"
@@ -205,9 +228,12 @@ export function WeekCalendar({
         entries.push({
           sortKey: start.getHours() * 60 + start.getMinutes(),
           node: (
-            <article className="border border-white/5 bg-black/30 p-3 text-muted">
+            <article
+              className="border border-white/5 bg-black/30 p-3 text-muted"
+              style={accent ? { borderLeftWidth: 3, borderLeftColor: accent } : undefined}
+            >
               <p className="text-sm">{bookedLabel(slot)}</p>
-              <p className="mt-1 text-xs">{time}</p>
+              <p className="mt-1 text-xs">{timeLine}</p>
             </article>
           ),
         });

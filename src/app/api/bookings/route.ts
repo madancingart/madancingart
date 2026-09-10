@@ -1,16 +1,48 @@
 import { after } from "next/server";
 import { revalidatePath } from "next/cache";
+import { createBookingCheckout } from "@/lib/booking/checkout";
 import { mapBookingError } from "@/lib/booking/errors";
+import { releaseUnpaidBooking } from "@/lib/booking/release";
 import { resolveBookingTerm } from "@/lib/booking/term";
 import { sendBookingEmails } from "@/lib/email";
 import { allowBookingAttempt, clientIp } from "@/lib/rate-limit";
+import { hasStripeSecret } from "@/lib/stripe";
 import { createClient } from "@/lib/supabase/server";
+import type { CustomerKind } from "@/lib/types";
 import {
   bookingApiSchema,
   coercePaymentOption,
+  customerKindFromClass,
+  guardianDisplayName,
 } from "@/lib/validation";
 
-const PAYMENTS_SOON = "Płatności online wkrótce.";
+type ClassTypeEmbed = {
+  slug: string;
+  is_pair: boolean;
+};
+
+async function expectedClassCustomerKind(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  classId: string,
+): Promise<CustomerKind | null> {
+  const { data, error } = await supabase
+    .from("recurring_classes")
+    .select("class_types ( slug, is_pair )")
+    .eq("id", classId)
+    .maybeSingle();
+
+  if (error || !data) {
+    return null;
+  }
+
+  const raw = (data as { class_types: ClassTypeEmbed | ClassTypeEmbed[] | null })
+    .class_types;
+  const type = Array.isArray(raw) ? raw[0] : raw;
+  if (!type) {
+    return null;
+  }
+  return customerKindFromClass({ slug: type.slug, isPair: type.is_pair });
+}
 
 export async function POST(request: Request) {
   let json: unknown;
@@ -57,6 +89,26 @@ export async function POST(request: Request) {
   const paymentOption = coercePaymentOption(data.paymentOption);
   const supabase = await createClient();
 
+  if (data.kind === "class") {
+    const expected = await expectedClassCustomerKind(supabase, data.targetId);
+    if (!expected || expected !== data.customerKind) {
+      return Response.json(
+        { ok: false, error: "Sprawdź dane osób zapisanych na ten typ zajęć." },
+        { status: 400 },
+      );
+    }
+  }
+
+  const partnerFirstName =
+    data.customerKind === "pair" ? data.partnerFirstName : null;
+  const partnerLastName =
+    data.customerKind === "pair" ? data.partnerLastName : null;
+  const guardianName =
+    data.customerKind === "child"
+      ? guardianDisplayName(data.guardianFirstName, data.guardianLastName)
+      : null;
+  const guardianPhone = data.customerKind === "child" ? data.phone : null;
+
   const { data: bookingId, error } = await supabase.rpc("create_booking", {
     p_kind: data.kind,
     p_target_id: data.targetId,
@@ -68,6 +120,11 @@ export async function POST(request: Request) {
     p_dance_type: data.kind === "slot" ? (data.danceType ?? null) : null,
     p_payment_option: paymentOption,
     p_consent: data.consentRodo,
+    p_partner_first_name: partnerFirstName,
+    p_partner_last_name: partnerLastName,
+    p_guardian_name: guardianName,
+    p_guardian_phone: guardianPhone,
+    p_customer_kind: data.customerKind,
   });
 
   if (error) {
@@ -88,14 +145,34 @@ export async function POST(request: Request) {
   revalidatePath("/grafik");
 
   if (paymentOption !== "onsite") {
-    return Response.json(
-      {
-        ok: false,
-        error: PAYMENTS_SOON,
-        bookingId,
-      },
-      { status: 400 },
-    );
+    if (!hasStripeSecret()) {
+      await releaseUnpaidBooking(bookingId);
+      return Response.json(
+        {
+          ok: false,
+          error: "Płatności online są chwilowo niedostępne.",
+        },
+        { status: 503 },
+      );
+    }
+
+    const checkout = await createBookingCheckout({
+      bookingId,
+      input: { ...data, paymentOption },
+    });
+
+    if ("error" in checkout) {
+      return Response.json(
+        { ok: false, error: checkout.error },
+        { status: checkout.status },
+      );
+    }
+
+    return Response.json({
+      ok: true,
+      bookingId,
+      checkoutUrl: checkout.url,
+    });
   }
 
   const term = await resolveBookingTerm(supabase, {
@@ -117,6 +194,10 @@ export async function POST(request: Request) {
       email: data.email,
       message: data.message,
       danceType: data.kind === "slot" ? (data.danceType ?? null) : null,
+      customerKind: data.customerKind,
+      partnerFirstName,
+      partnerLastName,
+      guardianName,
       term,
     }).catch((reason: unknown) => {
       console.error("Wysyłka maili po zapisie nie powiodła się.", reason);

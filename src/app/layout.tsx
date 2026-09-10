@@ -17,6 +17,10 @@ const greatVibes = Great_Vibes({
 export const metadata: Metadata = {
   title: site.name,
   description: "Szkoła tańca M&A Dancing Art — Mikołów i Lubliniec",
+  icons: {
+    icon: [{ url: "/favicon.svg", type: "image/svg+xml" }],
+    apple: [{ url: "/apple-touch-icon.png" }],
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

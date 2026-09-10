@@ -7,12 +7,15 @@ import { fromDatetimeLocal, nowInWarsaw, toDatetimeLocalValue } from "@/lib/date
 import type { LocationId } from "@/content/site";
 import { addOpenSlots } from "@/app/admin/(app)/kalendarz/actions";
 import type { ActionResult } from "@/app/admin/(app)/kalendarz/actions";
+import { TrainerSelect } from "@/components/admin/TrainerSelect";
+import type { TrainerRow } from "@/lib/types";
 
 const PRESETS = [45, 50, 60, 90] as const;
 
 type AddSlotModalProps = {
   open: boolean;
   locationId: LocationId;
+  trainers: Pick<TrainerRow, "id" | "name">[];
   initialStart: Date | null;
   onClose: () => void;
   onDone: (result: ActionResult) => void;
@@ -21,6 +24,7 @@ type AddSlotModalProps = {
 export function AddSlotModal({
   open,
   locationId,
+  trainers,
   initialStart,
   onClose,
   onDone,
@@ -58,6 +62,7 @@ export function AddSlotModal({
         <AddSlotForm
           key={toDatetimeLocalValue(initialStart ?? nowInWarsaw())}
           locationId={locationId}
+          trainers={trainers}
           initialStart={initialStart}
           onClose={onClose}
           onDone={onDone}
@@ -69,6 +74,7 @@ export function AddSlotModal({
 
 function AddSlotForm({
   locationId,
+  trainers,
   initialStart,
   onClose,
   onDone,
@@ -79,6 +85,7 @@ function AddSlotForm({
   const [durationMin, setDurationMin] = useState(60);
   const [customDuration, setCustomDuration] = useState(false);
   const [weeks, setWeeks] = useState(1);
+  const [trainerId, setTrainerId] = useState("");
   const [pending, setPending] = useState(false);
 
   async function submit() {
@@ -88,6 +95,7 @@ function AddSlotForm({
       startsAt,
       durationMin,
       weeks,
+      trainerId,
     });
     setPending(false);
     onDone(result);
@@ -185,6 +193,17 @@ function AddSlotForm({
       ) : null}
 
       <label className="mt-4 block text-[13px] text-muted">
+        Prowadzący
+        <TrainerSelect
+          value={trainerId}
+          trainers={trainers}
+          required
+          disabled={pending}
+          onChange={setTrainerId}
+        />
+      </label>
+
+      <label className="mt-4 block text-[13px] text-muted">
         Powtórz przez N tygodni
         <input
           type="number"
@@ -212,7 +231,7 @@ function AddSlotForm({
         >
           Anuluj
         </Button>
-        <Button type="button" size="sm" disabled={pending} onClick={submit}>
+        <Button type="button" size="sm" disabled={pending || !trainerId} onClick={submit}>
           Dodaj i otwórz zapisy
         </Button>
       </div>

@@ -15,6 +15,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "/zespol",
     "/galeria",
     "/o-nas",
+    "/pierwszy-taniec/pakiety",
   ];
 
   return paths.map((path) => ({

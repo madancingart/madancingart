@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarDays, ClipboardList, LogOut, Sparkles } from "lucide-react";
+import { CalendarDays, ClipboardCheck, ClipboardList, LogOut, Sparkles, Ticket } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
@@ -16,7 +16,9 @@ type NavItem = {
 
 const links: NavItem[] = [
   { href: "/admin/kalendarz", label: "Kalendarz", icon: CalendarDays },
+  { href: "/admin/ewidencja", label: "Ewidencja", icon: ClipboardCheck },
   { href: "/admin/zapisy", label: "Zapisy", icon: ClipboardList },
+  { href: "/admin/pakiety", label: "Pakiety", icon: Ticket },
   { href: "/admin/eventy", label: "Eventy", icon: Sparkles },
 ];
 

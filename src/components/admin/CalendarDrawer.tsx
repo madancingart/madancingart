@@ -1,12 +1,17 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { telHref } from "@/lib/contact";
-import { formatDateTimeWarsaw } from "@/lib/datetime";
-import type { AdminBooking, AdminClass, AdminSlot } from "@/lib/admin/calendar-types";
+import { formatDatePl, formatDateTimeWarsaw } from "@/lib/datetime";
+import type { AdminBooking, AdminClass, AdminSlot, AdminTrainer } from "@/lib/admin/calendar-types";
+import type { LocationId } from "@/content/site";
+import { GroupMembersList } from "@/components/admin/GroupMembersList";
+import { TrainerSelect } from "@/components/admin/TrainerSelect";
 import type { BookingStatus, PaymentStatus } from "@/lib/types";
+import { trainerShortName, UNASSIGNED_TRAINER_LABEL } from "@/lib/trainers";
 import {
   blockSlot,
   cancelBooking,
@@ -14,8 +19,14 @@ import {
   deleteSlot,
   unblockSlot,
   updateClassSettings,
+  updateSlotTrainer,
 } from "@/app/admin/(app)/kalendarz/actions";
 import type { ActionResult } from "@/app/admin/(app)/kalendarz/actions";
+import {
+  attachBookingToPackage,
+  listActivePackagesForCustomer,
+  type CustomerPackageOption,
+} from "@/app/admin/(app)/pakiety/actions";
 
 function bookingStatusLabel(status: BookingStatus): string {
   if (status === "confirmed") {
@@ -50,6 +61,8 @@ type ConfirmState = {
 type CalendarDrawerProps = {
   open: boolean;
   target: { kind: "class"; item: AdminClass } | { kind: "slot"; item: AdminSlot } | null;
+  sessionDateIso?: string | null;
+  trainers: AdminTrainer[];
   onClose: () => void;
   onDone: (result: ActionResult, closeDrawer?: boolean) => void;
 };
@@ -57,6 +70,8 @@ type CalendarDrawerProps = {
 export function CalendarDrawer({
   open,
   target,
+  sessionDateIso = null,
+  trainers,
   onClose,
   onDone,
 }: CalendarDrawerProps) {
@@ -129,6 +144,8 @@ export function CalendarDrawer({
               <ClassPanel
                 key={target.item.id}
                 item={target.item}
+                sessionDateIso={sessionDateIso}
+                trainers={trainers}
                 pending={pending}
                 onToggleSignup={() =>
                   run(() =>
@@ -136,6 +153,7 @@ export function CalendarDrawer({
                       classId: target.item.id,
                       signupOpen: !target.item.signupOpen,
                       capacity: target.item.capacity,
+                      trainerId: target.item.trainerId ?? "",
                     }),
                   )
                 }
@@ -145,6 +163,17 @@ export function CalendarDrawer({
                       classId: target.item.id,
                       signupOpen: target.item.signupOpen,
                       capacity: nextCapacity,
+                      trainerId: target.item.trainerId ?? "",
+                    }),
+                  )
+                }
+                onSaveTrainer={(trainerId) =>
+                  run(() =>
+                    updateClassSettings({
+                      classId: target.item.id,
+                      signupOpen: target.item.signupOpen,
+                      capacity: target.item.capacity,
+                      trainerId,
                     }),
                   )
                 }
@@ -159,13 +188,29 @@ export function CalendarDrawer({
                     run: () => cancelBooking({ bookingId: booking.id }),
                   })
                 }
+                onPaymentDone={(message) => {
+                  void run(async () => ({ ok: true, message }));
+                }}
+                onPaymentError={(message) => {
+                  void run(async () => ({ ok: false, error: message }));
+                }}
               />
             ) : null}
 
             {target?.kind === "slot" ? (
               <SlotPanel
+                key={target.item.id}
                 item={target.item}
+                trainers={trainers}
                 pending={pending}
+                onSaveTrainer={(trainerId) =>
+                  run(() =>
+                    updateSlotTrainer({
+                      slotId: target.item.id,
+                      trainerId,
+                    }),
+                  )
+                }
                 onConfirm={(booking) =>
                   run(() => confirmBooking({ bookingId: booking.id }))
                 }
@@ -196,6 +241,9 @@ export function CalendarDrawer({
                     run: () => deleteSlot({ slotId: target.item.id }),
                   })
                 }
+                onPackageResult={(result) => {
+                  void run(async () => result);
+                }}
               />
             ) : null}
 
@@ -242,26 +290,50 @@ export function CalendarDrawer({
 
 function ClassPanel({
   item,
+  sessionDateIso,
+  trainers,
   pending,
   onToggleSignup,
   onSaveCapacity,
+  onSaveTrainer,
   onConfirm,
   onCancel,
+  onPaymentDone,
+  onPaymentError,
 }: {
   item: AdminClass;
+  sessionDateIso: string | null;
+  trainers: AdminTrainer[];
   pending: boolean;
   onToggleSignup: () => void;
   onSaveCapacity: (capacity: number) => void;
+  onSaveTrainer: (trainerId: string) => void;
   onConfirm: (booking: AdminBooking) => void;
   onCancel: (booking: AdminBooking) => void;
+  onPaymentDone: (message: string) => void;
+  onPaymentError: (message: string) => void;
 }) {
   const [capacity, setCapacity] = useState(item.capacity);
+  const cancelled =
+    Boolean(sessionDateIso) && item.cancelledDates.includes(sessionDateIso ?? "");
+  const journalHref = sessionDateIso
+    ? `/admin/ewidencja?grupa=${item.id}&data=${sessionDateIso}`
+    : `/admin/ewidencja?grupa=${item.id}`;
   return (
     <div className="flex flex-col gap-5">
       <p className="text-[13px] text-muted">
         {item.level ? `${item.level} · ` : ""}
         obłożenie {item.taken}/{item.capacity}
       </p>
+      {cancelled ? (
+        <p className="text-[13px] text-muted">To wystąpienie jest odwołane.</p>
+      ) : null}
+      <Link
+        href={journalHref}
+        className="text-[13px] text-gold hover:text-gold-light"
+      >
+        Dziennik zajęć
+      </Link>
 
       <div className="flex flex-wrap items-center gap-2">
         <Button
@@ -275,6 +347,16 @@ function ClassPanel({
         </Button>
         <p className="text-[12px] text-muted">Klik, aby przełączyć.</p>
       </div>
+
+      <label className="text-[13px] text-muted">
+        Prowadzący
+        <TrainerSelect
+          value={item.trainerId ?? ""}
+          trainers={trainers}
+          disabled={pending}
+          onChange={onSaveTrainer}
+        />
+      </label>
 
       <label className="text-[13px] text-muted">
         Pojemność
@@ -301,63 +383,45 @@ function ClassPanel({
         </span>
       </label>
 
-      <ul className="flex flex-col gap-3">
-        {item.bookings.length === 0 ? (
-          <li className="text-[13px] text-muted">Brak zapisanych osób.</li>
-        ) : (
-          item.bookings.map((booking) => (
-            <li
-              key={booking.id}
-              className="border border-white/10 bg-black-soft p-3"
-            >
-              <BookingIdentity booking={booking} />
-              {booking.status !== "cancelled" ? (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {booking.status === "pending" ? (
-                    <Button
-                      type="button"
-                      size="sm"
-                      disabled={pending}
-                      onClick={() => onConfirm(booking)}
-                    >
-                      Potwierdź
-                    </Button>
-                  ) : null}
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    disabled={pending}
-                    onClick={() => onCancel(booking)}
-                  >
-                    Anuluj
-                  </Button>
-                </div>
-              ) : null}
-            </li>
-          ))
-        )}
-      </ul>
+      <GroupMembersList
+        classId={item.id}
+        locationId={item.locationId as LocationId}
+        classSlug={item.slug}
+        durationMin={item.durationMin}
+        members={item.members}
+        bookings={item.bookings}
+        pending={pending}
+        onConfirm={onConfirm}
+        onCancel={onCancel}
+        onPaymentDone={onPaymentDone}
+        onPaymentError={onPaymentError}
+      />
     </div>
   );
 }
 
 function SlotPanel({
   item,
+  trainers,
   pending,
+  onSaveTrainer,
   onConfirm,
   onCancelBooking,
   onBlock,
   onUnblock,
   onDelete,
+  onPackageResult,
 }: {
   item: AdminSlot;
+  trainers: AdminTrainer[];
   pending: boolean;
+  onSaveTrainer: (trainerId: string) => void;
   onConfirm: (booking: AdminBooking) => void;
   onCancelBooking: (booking: AdminBooking) => void;
   onBlock: () => void;
   onUnblock: () => void;
   onDelete: () => void;
+  onPackageResult: (result: ActionResult) => void;
 }) {
   const booking = item.booking;
   const canDelete = !booking;
@@ -373,7 +437,19 @@ function SlotPanel({
               ? "zajęty"
               : "zablokowany"}
         </span>
+        {" · "}
+        {trainerShortName(item.trainerId) ?? UNASSIGNED_TRAINER_LABEL}
       </p>
+
+      <label className="text-[13px] text-muted">
+        Prowadzący
+        <TrainerSelect
+          value={item.trainerId ?? ""}
+          trainers={trainers}
+          disabled={pending}
+          onChange={onSaveTrainer}
+        />
+      </label>
 
       {booking ? (
         <div className="border border-white/10 bg-black-soft p-3">
@@ -386,6 +462,11 @@ function SlotPanel({
           {booking.message ? (
             <p className="mt-2 text-[13px] text-muted">„{booking.message}”</p>
           ) : null}
+          <BookingPackageBlock
+            booking={booking}
+            pending={pending}
+            onAttached={onPackageResult}
+          />
           <p className="mt-2 text-[13px] text-muted">
             {paymentLabel(booking.paymentStatus)}
           </p>
@@ -459,19 +540,58 @@ function SlotPanel({
 }
 
 function BookingIdentity({ booking }: { booking: AdminBooking }) {
-  const phone = booking.phone;
+  const childPhone = booking.guardianPhone ?? booking.phone;
   const email = booking.email;
+  const isPair =
+    booking.customerKind === "pair" ||
+    Boolean(booking.partnerFirstName || booking.partnerLastName);
+  const isChild =
+    booking.customerKind === "child" || Boolean(booking.guardianName);
+
+  const firstLabel = [booking.firstName, booking.lastName]
+    .filter(Boolean)
+    .join(" ");
+  const partnerLabel = [booking.partnerFirstName, booking.partnerLastName]
+    .filter(Boolean)
+    .join(" ");
 
   return (
     <div>
-      <p className="text-cream">
-        {booking.firstName}
-        {booking.lastName ? ` ${booking.lastName}` : ""}
-      </p>
+      {isPair ? (
+        <>
+          <p className="text-[12px] text-muted">Pierwsza osoba</p>
+          <p className="text-cream">{firstLabel}</p>
+          <p className="mt-2 text-[12px] text-muted">Druga osoba</p>
+          <p className="text-cream">{partnerLabel || "—"}</p>
+        </>
+      ) : isChild ? (
+        <>
+          <p className="text-[12px] text-muted">Dziecko</p>
+          <p className="text-cream">{firstLabel}</p>
+          <p className="mt-2 text-[12px] text-muted">Rodzic / opiekun</p>
+          <p className="text-cream">{booking.guardianName || "—"}</p>
+        </>
+      ) : (
+        <p className="text-cream">{firstLabel}</p>
+      )}
       <p className="mt-1 text-[13px]">
-        {phone ? (
-          <a href={telHref(phone)} className="text-gold hover:text-gold-light">
-            {phone}
+        {isChild ? (
+          childPhone ? (
+            <a
+              href={telHref(childPhone)}
+              className="text-gold hover:text-gold-light"
+            >
+              {childPhone}
+            </a>
+          ) : (
+            <span className="text-muted">brak telefonu rodzica</span>
+          )
+        ) : booking.phone ? (
+          <a
+            href={telHref(booking.phone)}
+            className="text-gold hover:text-gold-light"
+          >
+            {booking.phone}
           </a>
         ) : (
           <span className="text-muted">brak telefonu</span>
@@ -489,6 +609,114 @@ function BookingIdentity({ booking }: { booking: AdminBooking }) {
         {bookingStatusLabel(booking.status)} · zapis{" "}
         {formatDateTimeWarsaw(booking.createdAt)}
       </p>
+    </div>
+  );
+}
+
+function BookingPackageBlock({
+  booking,
+  pending,
+  onAttached,
+}: {
+  booking: AdminBooking;
+  pending: boolean;
+  onAttached: (result: ActionResult) => void;
+}) {
+  const pkg = booking.weddingPackage;
+  const [options, setOptions] = useState<CustomerPackageOption[]>([]);
+  const [selected, setSelected] = useState("");
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    if (pkg || !booking.customerId) {
+      return;
+    }
+    let cancelled = false;
+    void listActivePackagesForCustomer(booking.customerId).then((result) => {
+      if (cancelled) {
+        return;
+      }
+      setLoaded(true);
+      if (result.ok) {
+        setOptions(result.packages);
+        setSelected(result.packages[0]?.id ?? "");
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [booking.customerId, pkg]);
+
+  if (pkg) {
+    return (
+      <div className="mt-3 border-t border-white/10 pt-3 text-[13px]">
+        <p className="text-cream">
+          Lekcja {booking.lessonNo ?? "—"}
+          {pkg.totalLessons != null ? `/${pkg.totalLessons}` : ""} ·{" "}
+          <a
+            href={`/admin/pakiety/${pkg.id}`}
+            className="text-gold hover:text-gold-light"
+          >
+            {pkg.label}
+          </a>
+        </p>
+        <p className="mt-1 text-muted">
+          Wesele: {pkg.weddingDate ? formatDatePl(pkg.weddingDate) : "—"}
+        </p>
+        {pkg.songs && pkg.songs.length > 0 ? (
+          <ul className="mt-2 flex flex-col gap-0.5 text-cream">
+            {pkg.songs.map((song) => (
+              <li key={song}>{song}</li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-1 text-muted">Brak piosenek w pakiecie.</p>
+        )}
+      </div>
+    );
+  }
+
+  if (!booking.customerId || booking.status === "cancelled") {
+    return null;
+  }
+
+  if (!loaded || options.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="mt-3 border-t border-white/10 pt-3">
+      <label className="text-[13px] text-muted">
+        Przypnij do pakietu
+        <select
+          value={selected}
+          onChange={(event) => setSelected(event.target.value)}
+          className="mt-1 min-h-11 w-full border border-white/10 bg-black px-3 text-cream"
+        >
+          {options.map((item) => (
+            <option key={item.id} value={item.id}>
+              {item.label}
+              {item.totalLessons != null
+                ? ` (${item.used}/${item.totalLessons})`
+                : ""}
+            </option>
+          ))}
+        </select>
+      </label>
+      <Button
+        type="button"
+        size="sm"
+        className="mt-2"
+        disabled={pending || !selected}
+        onClick={() => {
+          void attachBookingToPackage({
+            bookingId: booking.id,
+            packageId: selected,
+          }).then(onAttached);
+        }}
+      >
+        Przypnij do pakietu
+      </Button>
     </div>
   );
 }

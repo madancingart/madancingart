@@ -47,7 +47,7 @@ export const offerItems: OfferItem[] = [
     ],
     image: pierwszyTaniec,
     locations: bothLocations,
-    ctaLabel: "Porozmawiajmy o terminie",
+    ctaLabel: "Wybierz pakiet",
   },
   {
     slug: "taniec-uzytkowy",
@@ -232,7 +232,10 @@ export function getOfferBySlug(slug: string): OfferItem | undefined {
 }
 
 export function offerCtaHref(item: OfferItem): string {
-  if (item.slug === "pierwszy-taniec-weselny" || item.slug === "pokazy") {
+  if (item.slug === "pierwszy-taniec-weselny") {
+    return "/pierwszy-taniec/pakiety";
+  }
+  if (item.slug === "pokazy") {
     return "/kontakt";
   }
 

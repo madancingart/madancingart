@@ -1,6 +1,6 @@
 import { addDays } from "date-fns";
 import { createClient } from "@/lib/supabase/server";
-import { nowInWarsaw } from "@/lib/datetime";
+import { nowInWarsaw, warsawTodayIso, weekDaysFromIso } from "@/lib/datetime";
 import type {
   ClassOccupancyRow,
   ClassTypeRow,
@@ -37,7 +37,10 @@ function occupancyMap(
 export async function getSchedule(): Promise<ScheduleData | null> {
   const supabase = await createClient();
   const from = nowInWarsaw();
-  const until = addDays(from, 21);
+  const until = addDays(from, 35);
+  const weekStart = weekDaysFromIso(from.toISOString(), 0)[0];
+  const cancelledFrom = warsawTodayIso(weekStart);
+  const cancelledUntil = warsawTodayIso(addDays(weekStart, 34));
 
   const [
     classesResult,
@@ -46,11 +49,12 @@ export async function getSchedule(): Promise<ScheduleData | null> {
     calendarResult,
     occupancyResult,
     eventsResult,
+    cancelledResult,
   ] = await Promise.all([
     supabase
       .from("recurring_classes")
       .select(
-        "id,location_id,class_type_id,weekday,start_time,duration_min,level,capacity,signup_open,active",
+        "id,location_id,class_type_id,weekday,start_time,duration_min,level,capacity,signup_open,active,trainer_id",
       )
       .eq("active", true),
     supabase.from("class_types").select("id,slug,name,is_pair,color"),
@@ -58,7 +62,7 @@ export async function getSchedule(): Promise<ScheduleData | null> {
     supabase
       .from("public_calendar")
       .select(
-        "id,kind,location_id,starts_at,ends_at,status,initial,dance_type",
+        "id,kind,location_id,starts_at,ends_at,status,initial,dance_type,trainer_id",
       )
       .gte("starts_at", from.toISOString())
       .lt("starts_at", until.toISOString())
@@ -73,7 +77,13 @@ export async function getSchedule(): Promise<ScheduleData | null> {
       )
       .eq("published", true)
       .gte("starts_at", from.toISOString())
+      .lt("starts_at", until.toISOString())
       .order("starts_at", { ascending: true }),
+    supabase
+      .from("public_cancelled_sessions")
+      .select("recurring_class_id,session_date")
+      .gte("session_date", cancelledFrom)
+      .lte("session_date", cancelledUntil),
   ]);
 
   if (
@@ -100,6 +110,19 @@ export async function getSchedule(): Promise<ScheduleData | null> {
     asList(locationsResult.data as LocationRow[] | null).map((row) => row.id),
   );
 
+  const cancelledByClass = new Map<string, string[]>();
+  if (!cancelledResult.error) {
+    for (const row of asList(
+      cancelledResult.data as
+        | { recurring_class_id: string; session_date: string }[]
+        | null,
+    )) {
+      const list = cancelledByClass.get(row.recurring_class_id) ?? [];
+      list.push(row.session_date);
+      cancelledByClass.set(row.recurring_class_id, list);
+    }
+  }
+
   const classes: ScheduleClass[] = asList(
     classesResult.data as RecurringClassRow[] | null,
   )
@@ -118,6 +141,10 @@ export async function getSchedule(): Promise<ScheduleData | null> {
         signupOpen: row.signup_open,
         taken: seats?.taken ?? 0,
         capacity: seats?.capacity ?? row.capacity,
+        trainerId: row.trainer_id,
+        isPair: type?.is_pair ?? false,
+        slug: type?.slug ?? "",
+        cancelledDates: cancelledByClass.get(row.id) ?? [],
       };
     });
 
@@ -137,6 +164,7 @@ export async function getSchedule(): Promise<ScheduleData | null> {
       status: row.status,
       initial: row.initial,
       danceType: row.dance_type,
+      trainerId: row.trainer_id,
     }));
 
   const events: ScheduleEvent[] = asList(

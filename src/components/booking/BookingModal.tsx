@@ -12,9 +12,12 @@ import { RESERVATION_FEE_CENTS } from "@/content/pricing";
 import { formatBookingWhen, toWarsaw } from "@/lib/datetime";
 import { formatPlnFromCents } from "@/lib/money";
 import type { BookingTarget } from "@/lib/schedule/types";
+import type { CustomerKind } from "@/lib/types";
 import {
   bookingFormSchema,
+  customerKindForSlot,
   DANCE_TYPES,
+  formCustomerKindForTarget,
   isPaymentsEnabled,
   type BookingFormInput,
   type BookingFormValues,
@@ -37,6 +40,11 @@ export function BookingModal({ target, onClose }: BookingModalProps) {
   const [errorMessage, setErrorMessage] = useState("");
   const [successEmail, setSuccessEmail] = useState("");
   const paymentsOn = isPaymentsEnabled();
+  const initialCustomerKind = formCustomerKindForTarget({
+    bookingKind: target.kind,
+    classSlug: target.classSlug,
+    isPair: target.isPair,
+  });
   const location = site.locations.find((item) => item.id === target.locationId);
   const when = formatBookingWhen(
     toWarsaw(target.startsAt),
@@ -47,12 +55,19 @@ export function BookingModal({ target, onClose }: BookingModalProps) {
     register,
     handleSubmit,
     setError,
+    setValue,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<BookingFormInput, unknown, BookingFormValues>({
     resolver: zodResolver(bookingFormSchema),
     defaultValues: {
+      customerKind: initialCustomerKind,
       firstName: "",
       lastName: "",
+      partnerFirstName: "",
+      partnerLastName: "",
+      guardianFirstName: "",
+      guardianLastName: "",
       phone: "",
       email: "",
       message: "",
@@ -60,10 +75,31 @@ export function BookingModal({ target, onClose }: BookingModalProps) {
       paymentOption: "onsite",
       consentRodo: false,
       website: "",
-    },
+    } as BookingFormInput,
   });
 
   const firstNameReg = register("firstName");
+  const danceType = watch("danceType");
+  const customerKind = watch("customerKind") as CustomerKind;
+  const paymentOption = watch("paymentOption");
+  const pairErrors = errors as {
+    partnerFirstName?: { message?: string };
+    partnerLastName?: { message?: string };
+  };
+  const childErrors = errors as {
+    guardianFirstName?: { message?: string };
+    guardianLastName?: { message?: string };
+  };
+
+  useEffect(() => {
+    if (target.kind !== "slot") {
+      return;
+    }
+    const next = customerKindForSlot(danceType);
+    if (next !== customerKind) {
+      setValue("customerKind", next);
+    }
+  }, [customerKind, danceType, setValue, target.kind]);
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -125,6 +161,7 @@ export function BookingModal({ target, onClose }: BookingModalProps) {
       const payload = (await response.json()) as {
         ok?: boolean;
         error?: string;
+        checkoutUrl?: string;
       };
 
       if (!response.ok || !payload.ok) {
@@ -132,6 +169,11 @@ export function BookingModal({ target, onClose }: BookingModalProps) {
           payload.error ?? "Nie udało się zapisać. Spróbuj ponownie.",
         );
         setView("error");
+        return;
+      }
+
+      if (payload.checkoutUrl) {
+        window.location.assign(payload.checkoutUrl);
         return;
       }
 
@@ -247,8 +289,44 @@ export function BookingModal({ target, onClose }: BookingModalProps) {
               />
             </div>
 
+            <input type="hidden" {...register("customerKind")} />
+
+            {target.kind === "slot" ? (
+              <Field
+                label="Czego dotyczą zajęcia?"
+                error={errors.danceType?.message}
+                htmlFor="booking-dance-type"
+              >
+                <select
+                  id="booking-dance-type"
+                  className={fieldClass}
+                  aria-invalid={Boolean(errors.danceType)}
+                  {...register("danceType")}
+                >
+                  <option value="">Wybierz…</option>
+                  {DANCE_TYPES.map((item) => (
+                    <option key={item} value={item}>
+                      {item}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            ) : null}
+
+            {customerKind === "child" ? (
+              <p className="text-sm text-muted">
+                Kontaktujemy się wyłącznie z rodzicem/opiekunem.
+              </p>
+            ) : null}
+
             <Field
-              label="Imię"
+              label={
+                customerKind === "pair"
+                  ? "Imię pierwszej osoby"
+                  : customerKind === "child"
+                    ? "Imię dziecka"
+                    : "Imię"
+              }
               error={errors.firstName?.message}
               htmlFor="booking-first-name"
             >
@@ -266,7 +344,13 @@ export function BookingModal({ target, onClose }: BookingModalProps) {
             </Field>
 
             <Field
-              label="Nazwisko"
+              label={
+                customerKind === "pair"
+                  ? "Nazwisko pierwszej osoby"
+                  : customerKind === "child"
+                    ? "Nazwisko dziecka"
+                    : "Nazwisko"
+              }
               error={errors.lastName?.message}
               htmlFor="booking-last-name"
             >
@@ -279,8 +363,72 @@ export function BookingModal({ target, onClose }: BookingModalProps) {
               />
             </Field>
 
+            {customerKind === "pair" ? (
+              <>
+                <Field
+                  label="Imię drugiej osoby"
+                  error={pairErrors.partnerFirstName?.message}
+                  htmlFor="booking-partner-first-name"
+                >
+                  <input
+                    id="booking-partner-first-name"
+                    className={fieldClass}
+                    aria-invalid={Boolean(pairErrors.partnerFirstName)}
+                    {...register("partnerFirstName" as never)}
+                  />
+                </Field>
+                <Field
+                  label="Nazwisko drugiej osoby"
+                  error={pairErrors.partnerLastName?.message}
+                  htmlFor="booking-partner-last-name"
+                >
+                  <input
+                    id="booking-partner-last-name"
+                    className={fieldClass}
+                    aria-invalid={Boolean(pairErrors.partnerLastName)}
+                    {...register("partnerLastName" as never)}
+                  />
+                </Field>
+              </>
+            ) : null}
+
+            {customerKind === "child" ? (
+              <>
+                <Field
+                  label="Imię rodzica/opiekuna"
+                  error={childErrors.guardianFirstName?.message}
+                  htmlFor="booking-guardian-first-name"
+                >
+                  <input
+                    id="booking-guardian-first-name"
+                    className={fieldClass}
+                    aria-invalid={Boolean(childErrors.guardianFirstName)}
+                    {...register("guardianFirstName" as never)}
+                  />
+                </Field>
+                <Field
+                  label="Nazwisko rodzica/opiekuna"
+                  error={childErrors.guardianLastName?.message}
+                  htmlFor="booking-guardian-last-name"
+                >
+                  <input
+                    id="booking-guardian-last-name"
+                    className={fieldClass}
+                    aria-invalid={Boolean(childErrors.guardianLastName)}
+                    {...register("guardianLastName" as never)}
+                  />
+                </Field>
+              </>
+            ) : null}
+
             <Field
-              label="Telefon"
+              label={
+                customerKind === "pair"
+                  ? "Telefon (wspólny)"
+                  : customerKind === "child"
+                    ? "Telefon do rodzica"
+                    : "Telefon"
+              }
               error={errors.phone?.message}
               htmlFor="booking-phone"
             >
@@ -309,28 +457,6 @@ export function BookingModal({ target, onClose }: BookingModalProps) {
                 {...register("email")}
               />
             </Field>
-
-            {target.kind === "slot" ? (
-              <Field
-                label="Czego dotyczą zajęcia?"
-                error={errors.danceType?.message}
-                htmlFor="booking-dance-type"
-              >
-                <select
-                  id="booking-dance-type"
-                  className={fieldClass}
-                  aria-invalid={Boolean(errors.danceType)}
-                  {...register("danceType")}
-                >
-                  <option value="">Wybierz…</option>
-                  {DANCE_TYPES.map((item) => (
-                    <option key={item} value={item}>
-                      {item}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-            ) : null}
 
             <Field
               label="Wiadomość (opcjonalnie)"
@@ -363,10 +489,12 @@ export function BookingModal({ target, onClose }: BookingModalProps) {
                   Opłata rezerwacyjna {formatPlnFromCents(RESERVATION_FEE_CENTS)}{" "}
                   online
                 </label>
-                <label className="flex min-h-11 items-center gap-2 text-sm">
-                  <input type="radio" value="full" {...register("paymentOption")} />
-                  Zapłać całość online
-                </label>
+                {target.kind !== "event" ? (
+                  <label className="flex min-h-11 items-center gap-2 text-sm">
+                    <input type="radio" value="full" {...register("paymentOption")} />
+                    Zapłać całość online
+                  </label>
+                ) : null}
               </fieldset>
             ) : (
               <input type="hidden" value="onsite" {...register("paymentOption")} />
@@ -413,8 +541,10 @@ export function BookingModal({ target, onClose }: BookingModalProps) {
                   />
                   Wysyłanie…
                 </>
-              ) : (
+              ) : paymentOption === "onsite" ? (
                 "Wyślij zapis"
+              ) : (
+                "Przejdź do płatności"
               )}
             </Button>
           </form>

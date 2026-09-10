@@ -31,6 +31,14 @@ export function nowInWarsaw(): TZDate {
   return TZDate.tz(WARSAW_TZ);
 }
 
+/** Calendar date in Warsaw as `YYYY-MM-DD`. */
+export function warsawTodayIso(date: Date = nowInWarsaw()): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 export function toWarsaw(iso: string): TZDate {
   return new TZDate(iso, WARSAW_TZ);
 }
@@ -182,6 +190,20 @@ const WEEKDAY_LONG = [
   "niedziela",
 ] as const;
 
+/** ISO weekday 1 = poniedziałek … 7 = niedziela. */
+export function weekdayShortLabel(weekday: number): string {
+  return WEEKDAY_SHORT[weekday - 1] ?? "";
+}
+
+export function weekdayLongLabel(weekday: number): string {
+  return WEEKDAY_LONG[weekday - 1] ?? "";
+}
+
+/** `16:00:00` → `16:00`. */
+export function clockFromDbTime(time: string): string {
+  return time.slice(0, 5);
+}
+
 const MONTH_GENITIVE = [
   "stycznia",
   "lutego",
@@ -196,6 +218,45 @@ const MONTH_GENITIVE = [
   "listopada",
   "grudnia",
 ] as const;
+
+/** e.g. „10 września 2026” from `YYYY-MM-DD`. */
+export function formatDatePl(isoDate: string): string {
+  const [yearPart = "0", monthPart = "1", dayPart = "1"] = isoDate.split("-");
+  const year = Number.parseInt(yearPart, 10);
+  const month = Number.parseInt(monthPart, 10);
+  const day = Number.parseInt(dayPart, 10);
+  const monthName = MONTH_GENITIVE[month - 1] ?? "";
+  return `${day} ${monthName} ${year}`;
+}
+
+/** e.g. „30.09” from `YYYY-MM-DD`. */
+export function formatDayMonth(isoDate: string): string {
+  const [, monthPart = "01", dayPart = "01"] = isoDate.split("-");
+  return `${dayPart}.${monthPart}`;
+}
+
+/** First and last calendar day of the month containing `isoDate`. */
+export function warsawMonthBounds(isoDate: string): {
+  from: string;
+  until: string;
+} {
+  const [yearPart = "0", monthPart = "1"] = isoDate.split("-");
+  const year = Number.parseInt(yearPart, 10);
+  const month = Number.parseInt(monthPart, 10);
+  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  const mm = String(month).padStart(2, "0");
+  return {
+    from: `${year}-${mm}-01`,
+    until: `${year}-${mm}-${String(lastDay).padStart(2, "0")}`,
+  };
+}
+
+/** Whole days from `fromIso` to `untilIso` (`YYYY-MM-DD`). */
+export function isoDateDiffDays(fromIso: string, untilIso: string): number {
+  const from = Date.parse(`${fromIso}T00:00:00Z`);
+  const until = Date.parse(`${untilIso}T00:00:00Z`);
+  return Math.round((until - from) / 86_400_000);
+}
 
 /** e.g. „czwartek, 10 września 2026, 16:00–16:45” */
 export function formatBookingWhen(start: Date, end: Date): string {

@@ -1,6 +1,11 @@
 import { redirect } from "next/navigation";
 import { AdminWeekCalendar } from "@/components/admin/AdminWeekCalendar";
 import { getAdminCalendar } from "@/lib/admin/get-calendar";
+import {
+  adminCalendarHref,
+  parseKindFilter,
+  parseTrainerFilter,
+} from "@/lib/admin/calendar-url";
 import { requireAdmin } from "@/lib/admin/require-admin";
 import { nowInWarsaw } from "@/lib/datetime";
 import { site } from "@/content/site";
@@ -13,6 +18,8 @@ type PageProps = {
     lokalizacja?: string;
     tydzien?: string;
     nowy?: string;
+    trener?: string;
+    typ?: string;
   }>;
 };
 
@@ -21,7 +28,7 @@ function parseWeek(value: string | undefined): number {
   if (!Number.isFinite(parsed)) {
     return 0;
   }
-  return Math.min(26, Math.max(-26, parsed));
+  return parsed;
 }
 
 export default async function AdminCalendarPage({ searchParams }: PageProps) {
@@ -33,16 +40,19 @@ export default async function AdminCalendarPage({ searchParams }: PageProps) {
       : null;
 
   const weekOffset = parseWeek(params.tydzien);
-  const query = new URLSearchParams();
-  query.set("lokalizacja", "mikolow");
-  if (weekOffset !== 0) {
-    query.set("tydzien", String(weekOffset));
-  }
-  if (params.nowy === "slot") {
-    query.set("nowy", "slot");
-  }
+  const trainerFilter = parseTrainerFilter(params.trener);
+  const kindFilter = parseKindFilter(params.typ);
+
   if (!location) {
-    redirect(`/admin/kalendarz?${query.toString()}`);
+    redirect(
+      adminCalendarHref({
+        locationId: "mikolow",
+        weekOffset,
+        trainer: trainerFilter,
+        kind: kindFilter,
+        nowy: params.nowy === "slot" ? "slot" : null,
+      }),
+    );
   }
 
   const now = nowInWarsaw();
@@ -59,6 +69,8 @@ export default async function AdminCalendarPage({ searchParams }: PageProps) {
         locationId={location}
         nowIso={nowIso}
         weekOffset={weekOffset}
+        trainerFilter={trainerFilter}
+        kindFilter={kindFilter}
         data={data}
         openAddInitially={params.nowy === "slot"}
       />

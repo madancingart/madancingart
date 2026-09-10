@@ -1,5 +1,6 @@
 import { z } from "zod";
-import type { BookingKind, PaymentOption } from "@/lib/types";
+import { warsawTodayIso } from "@/lib/datetime";
+import type { BookingKind, CustomerKind, PaymentOption } from "@/lib/types";
 
 export const DANCE_TYPES = [
   "Pierwszy taniec weselny",
@@ -10,6 +11,13 @@ export const DANCE_TYPES = [
 ] as const;
 
 export type DanceType = (typeof DANCE_TYPES)[number];
+
+export const PAIR_DANCE_TYPES: readonly DanceType[] = [
+  "Pierwszy taniec weselny",
+  "Taniec użytkowy",
+];
+
+export const CHILD_CLASS_SLUGS = ["dzieci-4-7", "dzieci-8-14"] as const;
 
 export function isPaymentsEnabled(): boolean {
   return process.env.NEXT_PUBLIC_PAYMENTS_ENABLED === "true";
@@ -26,6 +34,35 @@ export function normalizePhone(value: string): string {
   return `+${digits}`;
 }
 
+export function isPairDanceType(value: string | null | undefined): boolean {
+  return PAIR_DANCE_TYPES.includes(value as DanceType);
+}
+
+export function isChildClassSlug(value: string | null | undefined): boolean {
+  return CHILD_CLASS_SLUGS.includes(
+    value as (typeof CHILD_CLASS_SLUGS)[number],
+  );
+}
+
+export function customerKindFromClass(input: {
+  slug: string | null | undefined;
+  isPair: boolean;
+}): CustomerKind {
+  if (isChildClassSlug(input.slug)) {
+    return "child";
+  }
+  if (input.isPair) {
+    return "pair";
+  }
+  return "adult";
+}
+
+export function customerKindForSlot(
+  danceType: string | null | undefined,
+): CustomerKind {
+  return isPairDanceType(danceType) ? "pair" : "adult";
+}
+
 const phoneSchema = z
   .string()
   .trim()
@@ -39,9 +76,11 @@ const phoneSchema = z
   )
   .transform(normalizePhone);
 
-export const bookingFormSchema = z.object({
-  firstName: z.string().trim().min(2, "Imię musi mieć co najmniej 2 znaki."),
-  lastName: z.string().trim().min(2, "Nazwisko musi mieć co najmniej 2 znaki."),
+function nameSchema(message: string) {
+  return z.string().trim().min(2, message);
+}
+
+const bookingSharedFields = {
   phone: phoneSchema,
   email: z
     .string()
@@ -56,33 +95,89 @@ export const bookingFormSchema = z.object({
   danceType: z.string().optional(),
   paymentOption: z.enum(["onsite", "reservation", "full"]),
   consentRodo: z.boolean().refine((value) => value === true, {
-    error:
-      "Zgoda na przetwarzanie danych jest wymagana.",
+    error: "Zgoda na przetwarzanie danych jest wymagana.",
   }),
   website: z.string().optional(),
+};
+
+const adultBookingSchema = z.object({
+  customerKind: z.literal("adult"),
+  firstName: nameSchema("Imię musi mieć co najmniej 2 znaki."),
+  lastName: nameSchema("Nazwisko musi mieć co najmniej 2 znaki."),
+  ...bookingSharedFields,
 });
+
+const pairBookingSchema = z.object({
+  customerKind: z.literal("pair"),
+  firstName: nameSchema("Imię pierwszej osoby musi mieć co najmniej 2 znaki."),
+  lastName: nameSchema(
+    "Nazwisko pierwszej osoby musi mieć co najmniej 2 znaki.",
+  ),
+  partnerFirstName: nameSchema(
+    "Imię drugiej osoby musi mieć co najmniej 2 znaki.",
+  ),
+  partnerLastName: nameSchema(
+    "Nazwisko drugiej osoby musi mieć co najmniej 2 znaki.",
+  ),
+  ...bookingSharedFields,
+});
+
+const childBookingSchema = z.object({
+  customerKind: z.literal("child"),
+  firstName: nameSchema("Imię dziecka musi mieć co najmniej 2 znaki."),
+  lastName: nameSchema("Nazwisko dziecka musi mieć co najmniej 2 znaki."),
+  guardianFirstName: nameSchema(
+    "Imię rodzica/opiekuna musi mieć co najmniej 2 znaki.",
+  ),
+  guardianLastName: nameSchema(
+    "Nazwisko rodzica/opiekuna musi mieć co najmniej 2 znaki.",
+  ),
+  ...bookingSharedFields,
+});
+
+export const bookingFormSchema = z.discriminatedUnion("customerKind", [
+  adultBookingSchema,
+  pairBookingSchema,
+  childBookingSchema,
+]);
 
 export type BookingFormInput = z.input<typeof bookingFormSchema>;
 export type BookingFormValues = z.output<typeof bookingFormSchema>;
 
-export const bookingApiSchema = bookingFormSchema
-  .extend({
-    kind: z.enum(["slot", "class", "event"]),
-    targetId: z.uuid({ error: "Nieprawidłowy identyfikator terminu." }),
-    locationId: z.enum(["mikolow", "lubliniec"]),
-    title: z.string().trim().min(1).max(200),
-    startsAt: z.string().min(1, "Brak godziny rozpoczęcia."),
-    endsAt: z.string().min(1, "Brak godziny zakończenia."),
-  })
+const bookingRequestMeta = z.object({
+  kind: z.enum(["slot", "class", "event"]),
+  targetId: z.uuid({ error: "Nieprawidłowy identyfikator terminu." }),
+  locationId: z.enum(["mikolow", "lubliniec"]),
+  title: z.string().trim().min(1).max(200),
+  startsAt: z.string().min(1, "Brak godziny rozpoczęcia."),
+  endsAt: z.string().min(1, "Brak godziny zakończenia."),
+});
+
+export const bookingApiSchema = z
+  .intersection(bookingFormSchema, bookingRequestMeta)
   .superRefine((data, ctx) => {
-    if (data.kind !== "slot") {
-      return;
+    if (data.kind === "slot") {
+      if (!DANCE_TYPES.includes(data.danceType as DanceType)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["danceType"],
+          message: "Wybierz, czego dotyczą zajęcia.",
+        });
+      }
+      const expected = customerKindForSlot(data.danceType);
+      if (data.customerKind !== expected) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["customerKind"],
+          message: "Sprawdź dane osób zapisanych na ten typ zajęć.",
+        });
+      }
     }
-    if (!DANCE_TYPES.includes(data.danceType as DanceType)) {
+    if (data.kind === "event" && data.customerKind !== "adult") {
       ctx.addIssue({
         code: "custom",
-        path: ["danceType"],
-        message: "Wybierz, czego dotyczą zajęcia.",
+        path: ["customerKind"],
+        message: "Sprawdź dane osób zapisanych na ten typ zajęć.",
       });
     }
   });
@@ -96,4 +191,96 @@ export function coercePaymentOption(
     return "onsite";
   }
   return option;
+}
+
+export function formCustomerKindForTarget(input: {
+  bookingKind: BookingKind;
+  classSlug?: string | null;
+  isPair?: boolean;
+}): CustomerKind {
+  if (input.bookingKind === "class") {
+    return customerKindFromClass({
+      slug: input.classSlug,
+      isPair: Boolean(input.isPair),
+    });
+  }
+  return "adult";
+}
+
+export function guardianDisplayName(
+  firstName: string,
+  lastName: string,
+): string {
+  return `${firstName} ${lastName}`.trim();
+}
+
+const isoDateOnly = z
+  .string()
+  .trim()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Podaj datę wesela.");
+
+export const WEDDING_PACKAGE_KINDS = [
+  "wedding_single",
+  "wedding_6",
+  "wedding_10",
+] as const;
+
+export function isFutureWarsawDate(
+  isoDate: string,
+  todayIso: string,
+): boolean {
+  return isoDate > todayIso;
+}
+
+export const packageSongSchema = z.object({
+  title: nameSchema("Podaj tytuł utworu."),
+  artist: nameSchema("Podaj wykonawcę."),
+});
+
+export const packagePurchaseSchema = z
+  .object({
+    packageKind: z.enum(WEDDING_PACKAGE_KINDS, {
+      error: "Wybierz pakiet.",
+    }),
+    firstName: nameSchema("Imię pierwszej osoby musi mieć co najmniej 2 znaki."),
+    lastName: nameSchema(
+      "Nazwisko pierwszej osoby musi mieć co najmniej 2 znaki.",
+    ),
+    partnerFirstName: nameSchema(
+      "Imię drugiej osoby musi mieć co najmniej 2 znaki.",
+    ),
+    partnerLastName: nameSchema(
+      "Nazwisko drugiej osoby musi mieć co najmniej 2 znaki.",
+    ),
+    phone: phoneSchema,
+    email: z
+      .string()
+      .trim()
+      .pipe(z.email({ error: "Podaj poprawny adres e-mail." }))
+      .transform((value) => value.toLowerCase()),
+    weddingDate: isoDateOnly,
+    songs: z
+      .array(packageSongSchema)
+      .min(1, "Dodaj przynajmniej jedną propozycję piosenki.")
+      .max(5, "Możesz podać maksymalnie 5 utworów."),
+    consentRodo: z.boolean().refine((value) => value === true, {
+      error: "Zgoda na przetwarzanie danych jest wymagana.",
+    }),
+    website: z.string().optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (!isFutureWarsawDate(data.weddingDate, warsawTodayIso())) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["weddingDate"],
+        message: "Data wesela musi być w przyszłości.",
+      });
+    }
+  });
+
+export type PackagePurchaseInput = z.input<typeof packagePurchaseSchema>;
+export type PackagePurchaseValues = z.output<typeof packagePurchaseSchema>;
+
+export function songsToStored(songs: { title: string; artist: string }[]): string[] {
+  return songs.map((song) => `${song.title} — ${song.artist}`);
 }

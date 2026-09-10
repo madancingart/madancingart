@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test": "vitest run",
     "images": "node scripts/optimize-images.mjs"
   },
   "dependencies": {
@@ -36,6 +37,7 @@
     "sharp": "^0.35.4",
     "supabase": "^2.116.0",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^3.2.4"
   }
 }

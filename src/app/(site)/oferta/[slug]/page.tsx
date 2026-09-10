@@ -138,9 +138,7 @@ export default async function OfferDetailPage({ params }: OfferPageProps) {
         <Container className="flex flex-col items-start gap-6 md:flex-row md:items-center md:justify-between">
           <Reveal>
             <h2 className="text-2xl font-semibold text-cream md:text-3xl">
-              {item.ctaLabel === "Porozmawiajmy o terminie"
-                ? "Porozmawiajmy o terminie"
-                : "Zapisz się"}
+              {item.ctaLabel}
             </h2>
           </Reveal>
           <Button href={offerCtaHref(item)} size="lg">

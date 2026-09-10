@@ -64,7 +64,11 @@ export async function GET(request: Request) {
         subjectLabel(row),
         locationLabel(row.locationId),
         statusLabel(row.status),
-        paymentLabel(row.paymentStatus),
+        row.kind === "class" && row.membership
+          ? [row.membership.label, row.membership.detail]
+              .filter(Boolean)
+              .join(" ")
+          : paymentLabel(row.paymentStatus),
       ]
         .map(csvCell)
         .join(";"),

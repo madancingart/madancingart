@@ -213,3 +213,15 @@ export const pricing: Record<LocationId, PricingSection[]> = {
 export function isPromoSection(section: PricingSection): boolean {
   return section.title.startsWith("Promocja");
 }
+
+export function priceAmountCents(id: string): number | null {
+  for (const sections of Object.values(pricing)) {
+    for (const section of sections) {
+      const item = section.items.find((row) => row.id === id);
+      if (item) {
+        return item.amountCents;
+      }
+    }
+  }
+  return null;
+}
