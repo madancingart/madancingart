@@ -144,7 +144,7 @@ curl -sS "$URL/rest/v1/rpc/create_booking" \
 
 Klient potwierdza na `/potwierdz/{token}` (noindex). RPC `confirm_booking` ustawia `confirmed_at`. Token zużyty, anulowany albo po starcie terminu → komunikat z telefonem szkoły.
 
-Cron codziennie o 08:00 Europe/Warsaw (`vercel.json` → `GET /api/cron/reminders`, nagłówek `Authorization: Bearer CRON_SECRET`): maile „Potwierdź swój termin” do rezerwacji slotów za 24–48 h bez `confirmed_at` i bez `reminder_sent_at`. Ponowne uruchomienie tego samego dnia nie dubluje (znacznik `reminder_sent_at`). `AUTO_RELEASE_UNCONFIRMED` zostaw na `false`.
+Cron codziennie o 08:00 UTC (`vercel.json` → `GET /api/cron/reminders`, nagłówek `Authorization: Bearer CRON_SECRET`): maile „Potwierdź swój termin” do rezerwacji slotów za 24–48 h bez `confirmed_at` i bez `reminder_sent_at`. Ponowne uruchomienie tego samego dnia nie dubluje (znacznik `reminder_sent_at`). `AUTO_RELEASE_UNCONFIRMED` zostaw na `false`.
 
 ```bash
 # losowy token → false
