@@ -28,7 +28,6 @@ type RecurringLite = {
   trainer_id: string | null;
 };
 
-type ClassTypeLite = { id: string; name: string };
 type SlotBookingLite = {
   slot_id: string;
   first_name: string;
