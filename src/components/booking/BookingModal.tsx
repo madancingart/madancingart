@@ -8,9 +8,7 @@ import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/Button";
 import { site } from "@/content/site";
-import { RESERVATION_FEE_CENTS } from "@/content/pricing";
 import { formatBookingWhen, toWarsaw } from "@/lib/datetime";
-import { formatPlnFromCents } from "@/lib/money";
 import type { BookingTarget } from "@/lib/schedule/types";
 import type { CustomerKind } from "@/lib/types";
 import {
@@ -18,7 +16,6 @@ import {
   customerKindForSlot,
   DANCE_TYPES,
   formCustomerKindForTarget,
-  isPaymentsEnabled,
   type BookingFormInput,
   type BookingFormValues,
 } from "@/lib/validation";
@@ -39,7 +36,6 @@ export function BookingModal({ target, onClose }: BookingModalProps) {
   const [view, setView] = useState<View>("form");
   const [errorMessage, setErrorMessage] = useState("");
   const [successEmail, setSuccessEmail] = useState("");
-  const paymentsOn = isPaymentsEnabled();
   const initialCustomerKind = formCustomerKindForTarget({
     bookingKind: target.kind,
     classSlug: target.classSlug,
@@ -72,7 +68,7 @@ export function BookingModal({ target, onClose }: BookingModalProps) {
       email: "",
       message: "",
       danceType: "",
-      paymentOption: "onsite",
+      paymentOption: "full",
       consentRodo: false,
       website: "",
     } as BookingFormInput,
@@ -81,7 +77,6 @@ export function BookingModal({ target, onClose }: BookingModalProps) {
   const firstNameReg = register("firstName");
   const danceType = watch("danceType");
   const customerKind = watch("customerKind") as CustomerKind;
-  const paymentOption = watch("paymentOption");
   const pairErrors = errors as {
     partnerFirstName?: { message?: string };
     partnerLastName?: { message?: string };
@@ -473,32 +468,7 @@ export function BookingModal({ target, onClose }: BookingModalProps) {
               />
             </Field>
 
-            {paymentsOn ? (
-              <fieldset className="border border-white/10 p-3">
-                <legend className="px-1 text-sm text-cream">Płatność</legend>
-                <label className="mt-2 flex min-h-11 items-center gap-2 text-sm">
-                  <input type="radio" value="onsite" {...register("paymentOption")} />
-                  Płatność na miejscu
-                </label>
-                <label className="flex min-h-11 items-center gap-2 text-sm">
-                  <input
-                    type="radio"
-                    value="reservation"
-                    {...register("paymentOption")}
-                  />
-                  Opłata rezerwacyjna {formatPlnFromCents(RESERVATION_FEE_CENTS)}{" "}
-                  online
-                </label>
-                {target.kind !== "event" ? (
-                  <label className="flex min-h-11 items-center gap-2 text-sm">
-                    <input type="radio" value="full" {...register("paymentOption")} />
-                    Zapłać całość online
-                  </label>
-                ) : null}
-              </fieldset>
-            ) : (
-              <input type="hidden" value="onsite" {...register("paymentOption")} />
-            )}
+            <input type="hidden" value="full" {...register("paymentOption")} />
 
             <div>
               <label className="flex items-start gap-3 text-sm text-muted">
@@ -541,8 +511,6 @@ export function BookingModal({ target, onClose }: BookingModalProps) {
                   />
                   Wysyłanie…
                 </>
-              ) : paymentOption === "onsite" ? (
-                "Wyślij zapis"
               ) : (
                 "Przejdź do płatności"
               )}

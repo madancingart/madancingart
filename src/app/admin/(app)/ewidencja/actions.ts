@@ -12,6 +12,20 @@ import {
   type ConsumablePass,
 } from "@/lib/attendance-pass";
 import { isIsoDate } from "@/lib/admin/class-dates";
+import {
+  customerSearchOrFilter,
+  digitsFromQuery,
+  sanitizeCustomerQuery,
+} from "@/lib/admin/customer-search";
+import { uniqueEmails } from "@/lib/mail/batch";
+import { sendClassSessionCancelledEmails } from "@/lib/email";
+import { site } from "@/content/site";
+import {
+  classStartOnDay,
+  formatBookingWhen,
+  fromDatetimeLocal,
+} from "@/lib/datetime";
+import { addMinutes } from "date-fns";
 import { normalizePhone } from "@/lib/validation";
 import type { PackageKind, PackageStatus } from "@/lib/types";
 
@@ -65,6 +79,7 @@ function revalidateJournal(classId: string) {
   revalidatePath("/admin/kalendarz");
   revalidatePath("/admin/zapisy");
   revalidatePath("/admin/pakiety");
+  revalidatePath("/admin/klienci", "layout");
   revalidatePath(`/admin/grupy/${classId}`);
 }
 
@@ -267,29 +282,20 @@ export async function searchCustomers(
   query: string,
 ): Promise<{ ok: true; rows: SearchCustomerRow[] } | { ok: false; error: string }> {
   const { supabase } = await requireAdmin();
-  const cleaned = query
-    .trim()
-    .replace(/[^\p{L}\p{N}\s+-]/gu, "")
-    .slice(0, 80);
-  if (cleaned.length < 2) {
+  const cleaned = sanitizeCustomerQuery(query);
+  const digits = digitsFromQuery(query);
+  if (cleaned.length < 2 && digits.length < 3) {
     return { ok: true, rows: [] };
   }
-
-  const digits = cleaned.replace(/\D/g, "");
-  const pattern = `%${cleaned}%`;
-  const filters = [
-    `last_name.ilike.${pattern}`,
-    `first_name.ilike.${pattern}`,
-    `email.ilike.${pattern}`,
-  ];
-  if (digits.length >= 3) {
-    filters.push(`phone.ilike.%${digits}%`);
+  const orFilter = customerSearchOrFilter(query);
+  if (!orFilter) {
+    return { ok: true, rows: [] };
   }
 
   const { data, error } = await supabase
     .from("customers")
     .select("id,first_name,last_name,phone,email")
-    .or(filters.join(","))
+    .or(orFilter)
     .order("last_name", { ascending: true })
     .limit(8);
 
@@ -485,7 +491,7 @@ export async function addDropInNew(
 const cancelSchema = z.object({
   classId: z.uuid(),
   sessionDate: isoDate,
-  reason: z.string().trim().min(3, "Podaj powód odwołania."),
+  reason: z.string().trim().max(500).optional(),
 });
 
 export async function cancelClassSession(
@@ -493,7 +499,7 @@ export async function cancelClassSession(
 ): Promise<{ ok: true; message: string } | { ok: false; error: string }> {
   const parsed = cancelSchema.safeParse(input);
   if (!parsed.success) {
-    return { ok: false, error: parsed.error.issues[0]?.message ?? "Sprawdź powód." };
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Nie udało się odwołać." };
   }
   const { user, supabase } = await requireAdmin();
   const session = await getOrCreateClassSession(
@@ -508,11 +514,12 @@ export async function cancelClassSession(
     return { ok: false, error: "Te zajęcia są już odwołane." };
   }
 
+  const reason = parsed.data.reason?.trim() || null;
   const { error } = await supabase
     .from("class_sessions")
     .update({
       status: "cancelled",
-      note: parsed.data.reason,
+      note: reason,
     })
     .eq("id", session.id);
 
@@ -527,7 +534,28 @@ export async function cancelClassSession(
     entity: "class_session",
     entity_id: session.id,
     details: {
-      reason: parsed.data.reason,
+      reason,
+      session_date: parsed.data.sessionDate,
+      recurring_class_id: parsed.data.classId,
+    },
+  });
+
+  const notified = await notifyClassCancelled({
+    supabase,
+    classId: parsed.data.classId,
+    sessionDate: parsed.data.sessionDate,
+    reason,
+  });
+
+  await supabase.from("audit_log").insert({
+    actor_id: user.id,
+    actor_label: "ola",
+    action: "class_session.cancelled_notified",
+    entity: "class_session",
+    entity_id: session.id,
+    details: {
+      notified,
+      reason,
       session_date: parsed.data.sessionDate,
       recurring_class_id: parsed.data.classId,
     },
@@ -536,5 +564,66 @@ export async function cancelClassSession(
   revalidateJournal(parsed.data.classId);
   revalidatePath("/grafik");
   revalidatePath("/");
-  return { ok: true, message: "Zajęcia odwołane." };
+  return {
+    ok: true,
+    message:
+      notified > 0
+        ? `Zajęcia odwołane. Wysłano ${notified} ${notified === 1 ? "wiadomość" : "wiadomości"}.`
+        : "Zajęcia odwołane.",
+  };
+}
+
+type CustomerMailEmbed = { email: string | null; kind: string | null };
+
+async function notifyClassCancelled(input: {
+  supabase: Awaited<ReturnType<typeof requireAdmin>>["supabase"];
+  classId: string;
+  sessionDate: string;
+  reason: string | null;
+}): Promise<number> {
+  const { data: classRow } = await input.supabase
+    .from("recurring_classes")
+    .select("location_id,start_time,duration_min,class_types(name)")
+    .eq("id", input.classId)
+    .maybeSingle();
+
+  const { data: bookings } = await input.supabase
+    .from("bookings")
+    .select("email,customers(email,kind)")
+    .eq("kind", "class")
+    .eq("recurring_class_id", input.classId)
+    .neq("status", "cancelled");
+
+  const emails = uniqueEmails(
+    (bookings ?? []).flatMap((row) => {
+      const embed = row.customers as CustomerMailEmbed | CustomerMailEmbed[] | null;
+      const customer = Array.isArray(embed) ? embed[0] : embed;
+      return [row.email as string | null, customer?.email ?? null];
+    }),
+  );
+  if (emails.length === 0) {
+    return 0;
+  }
+
+  const type = classRow
+    ? (classRow.class_types as { name: string } | { name: string }[] | null)
+    : null;
+  const title = Array.isArray(type)
+    ? (type[0]?.name ?? "Zajęcia")
+    : (type?.name ?? "Zajęcia");
+  const locationId = (classRow?.location_id as string | undefined) ?? "";
+  const location = site.locations.find((item) => item.id === locationId);
+  const startTime = (classRow?.start_time as string | undefined) ?? "18:00:00";
+  const duration = Number(classRow?.duration_min ?? 60);
+  const day = fromDatetimeLocal(`${input.sessionDate}T12:00`);
+  const start = classStartOnDay(day, startTime);
+  const end = addMinutes(start, duration);
+
+  return sendClassSessionCancelledEmails({
+    emails,
+    title,
+    when: formatBookingWhen(start, end),
+    locationLine: [location?.city, location?.address].filter(Boolean).join(", "),
+    reason: input.reason,
+  });
 }

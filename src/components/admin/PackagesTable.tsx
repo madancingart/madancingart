@@ -3,9 +3,11 @@ import { formatPlnFromCents } from "@/lib/money";
 import { weddingCoupleTileLabel } from "@/lib/packages/couple-label";
 import type { PackageStatus } from "@/lib/types";
 import Link from "next/link";
+import { CustomerNameLink } from "@/components/admin/CustomerNameLink";
 
 export type PackageListItem = {
   id: string;
+  customerId: string | null;
   label: string;
   status: PackageStatus;
   weddingDate: string | null;
@@ -65,8 +67,16 @@ export function PackagesTable({ items }: { items: PackageListItem[] }) {
           >
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <p className="text-[15px] font-semibold text-cream">{couple}</p>
-                <p className="text-[13px] text-muted">{names}</p>
+                <p className="text-[15px] font-semibold text-cream">
+                  <CustomerNameLink customerId={item.customerId}>
+                    {couple}
+                  </CustomerNameLink>
+                </p>
+                <p className="text-[13px] text-muted">
+                  <CustomerNameLink customerId={item.customerId}>
+                    {names}
+                  </CustomerNameLink>
+                </p>
                 <p className="mt-1 text-[13px] text-cream">{item.label}</p>
               </div>
               <Link

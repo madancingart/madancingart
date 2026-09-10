@@ -1,8 +1,10 @@
 import { addMinutes, getISODay, isSameDay } from "date-fns";
 import { site, type LocationId } from "@/content/site";
+import { isUnconfirmedUrgent } from "@/lib/booking/confirmation-window";
 import {
   boundsOfWarsawDay,
   classStartOnDay,
+  formatBookingWhen,
   formatTimeRange,
   nowInWarsaw,
   toWarsaw,
@@ -21,12 +23,23 @@ export type TodayItem = {
   sortKey: number;
 };
 
+export type AwaitingConfirmation = {
+  id: string;
+  name: string;
+  phone: string | null;
+  when: string;
+  locationLabel: string;
+  startsAt: string;
+  customerId: string | null;
+};
+
 export type PendingBooking = {
   id: string;
   name: string;
   kind: BookingKind;
   createdAt: string;
   status: BookingStatus;
+  customerId: string | null;
 };
 
 function city(locationId: string): string {
@@ -54,6 +67,7 @@ export async function getAdminDashboard(
   todayCount: number;
   pending: PendingBooking[];
   pendingCount: number;
+  awaitingConfirmation: AwaitingConfirmation[];
 }> {
   const now = nowInWarsaw();
   const { start, end } = boundsOfWarsawDay(now);
@@ -66,6 +80,7 @@ export async function getAdminDashboard(
     eventsResult,
     pendingResult,
     pendingCountResult,
+    awaitingSlotsResult,
   ] = await Promise.all([
     supabase
       .from("recurring_classes")
@@ -89,7 +104,7 @@ export async function getAdminDashboard(
       .order("starts_at", { ascending: true }),
     supabase
       .from("admin_booking_list")
-      .select("id,first_name,last_name,kind,created_at,status,location_id")
+      .select("id,first_name,last_name,kind,created_at,status,location_id,customer_id")
       .eq("status", "pending")
       .order("created_at", { ascending: false })
       .limit(40),
@@ -97,6 +112,13 @@ export async function getAdminDashboard(
       .from("admin_booking_list")
       .select("id,location_id", { count: "exact" })
       .eq("status", "pending"),
+    supabase
+      .from("slots")
+      .select("id,location_id,starts_at,ends_at")
+      .eq("status", "booked")
+      .gt("starts_at", now.toISOString())
+      .lte("starts_at", new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString())
+      .order("starts_at", { ascending: true }),
   ]);
 
   const types = new Map(
@@ -183,16 +205,69 @@ export async function getAdminDashboard(
     kind: row.kind as BookingKind,
     createdAt: row.created_at as string,
     status: row.status as BookingStatus,
+    customerId: (row.customer_id as string | null) ?? null,
   }));
 
   const pendingCount = (pendingCountResult.data ?? []).filter((row) =>
     filterLocation((row.location_id as string | null) ?? null, selected),
   ).length;
 
+  const awaitingSlotIds = (awaitingSlotsResult.data ?? [])
+    .filter((row) => filterLocation(row.location_id as string, selected))
+    .filter((row) =>
+      isUnconfirmedUrgent(toWarsaw(row.starts_at as string), now),
+    )
+    .map((row) => row.id as string);
+
+  let awaitingConfirmation: AwaitingConfirmation[] = [];
+  if (awaitingSlotIds.length > 0) {
+    const { data: awaitingBookings } = await supabase
+      .from("bookings")
+      .select(
+        "id,first_name,last_name,phone,status,confirmed_at,slot_id,customer_id,customers(guardian_phone)",
+      )
+      .eq("kind", "slot")
+      .neq("status", "cancelled")
+      .is("confirmed_at", null)
+      .in("slot_id", awaitingSlotIds);
+
+    const slotById = new Map(
+      (awaitingSlotsResult.data ?? []).map((row) => [row.id as string, row]),
+    );
+
+    type GuardianEmbed = { guardian_phone: string | null };
+    awaitingConfirmation = (awaitingBookings ?? [])
+      .map((row) => {
+        const slot = slotById.get(row.slot_id as string);
+        if (!slot) {
+          return null;
+        }
+        const starts = toWarsaw(slot.starts_at as string);
+        const ends = toWarsaw(slot.ends_at as string);
+        const embed = row.customers as GuardianEmbed | GuardianEmbed[] | null;
+        const guardian = Array.isArray(embed) ? embed[0] : embed;
+        const phone =
+          (guardian?.guardian_phone as string | null) ??
+          ((row.phone as string | null) ?? null);
+        return {
+          id: row.id as string,
+          name: `${row.first_name as string} ${row.last_name as string | null ?? ""}`.trim(),
+          phone,
+          when: formatBookingWhen(starts, ends),
+          locationLabel: city(slot.location_id as string),
+          startsAt: slot.starts_at as string,
+          customerId: (row.customer_id as string | null) ?? null,
+        };
+      })
+      .filter((item): item is AwaitingConfirmation => item !== null)
+      .sort((left, right) => left.startsAt.localeCompare(right.startsAt));
+  }
+
   return {
     today,
     todayCount: today.length,
     pending,
     pendingCount,
+    awaitingConfirmation,
   };
 }

@@ -31,6 +31,8 @@ Skopiuj `.env.local.example` do `.env.local` i uzupełnij wartości.
 | `STRIPE_WEBHOOK_SECRET` | Stripe → Developers → Webhooks, endpoint `POST /api/stripe/webhook`. Lokalnie: `stripe listen --forward-to localhost:3000/api/stripe/webhook` |
 | `NEXT_PUBLIC_PAYMENTS_ENABLED` | `true` żeby w formularzu zapisu pokazać płatność online |
 | `NEXT_PUBLIC_SITE_URL` | Publiczny adres strony, lokalnie `http://localhost:3000` |
+| `CRON_SECRET` | Losowy sekret; Vercel Cron wysyła `Authorization: Bearer CRON_SECRET` na `GET /api/cron/reminders` |
+| `AUTO_RELEASE_UNCONFIRMED` | `true` zwalnia niepotwierdzone sloty 24 h przed startem. **Zostaw `false`**, dopóki Ola nie zdecyduje inaczej |
 
 ### Vercel
 
@@ -41,6 +43,8 @@ W **Project → Settings → Environment Variables** ustaw co najmniej:
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `NEXT_PUBLIC_SITE_URL` (np. `https://twoja-domena.pl`)
 - `RESEND_API_KEY` (maile z zapisów)
+- `CRON_SECRET` (przypomnienia o potwierdzeniu terminu)
+- `AUTO_RELEASE_UNCONFIRMED=false` (zwalnianie niepotwierdzonych slotów — wyłączone)
 - `STRIPE_SECRET_KEY` i `STRIPE_WEBHOOK_SECRET` (płatności)
 - `NEXT_PUBLIC_PAYMENTS_ENABLED=true` dopiero gdy Stripe jest skonfigurowany
 
@@ -138,6 +142,10 @@ curl -sS "$URL/rest/v1/rpc/create_booking" \
 
 ### CRM: confirm_booking (token z maila)
 
+Klient potwierdza na `/potwierdz/{token}` (noindex). RPC `confirm_booking` ustawia `confirmed_at`. Token zużyty, anulowany albo po starcie terminu → komunikat z telefonem szkoły.
+
+Cron codziennie o 08:00 Europe/Warsaw (`vercel.json` → `GET /api/cron/reminders`, nagłówek `Authorization: Bearer CRON_SECRET`): maile „Potwierdź swój termin” do rezerwacji slotów za 24–48 h bez `confirmed_at` i bez `reminder_sent_at`. Ponowne uruchomienie tego samego dnia nie dubluje (znacznik `reminder_sent_at`). `AUTO_RELEASE_UNCONFIRMED` zostaw na `false`.
+
 ```bash
 # losowy token → false
 curl -sS "$URL/rest/v1/rpc/confirm_booking" \
@@ -155,7 +163,7 @@ Status opłacenia członka grupy (`src/lib/membership-status.ts`) liczy zużycie
 
 ## Stripe (płatności za zapis)
 
-Kwoty liczy wyłącznie serwer z `src/content/pricing.ts` (opłata rezerwacyjna albo pełna kwota z cennika). Checkout jest hostowany przez Stripe; fulfillment idzie przez webhook `checkout.session.completed` (status `paid` + mail). Po 30 minutach bez płatności `checkout.session.expired` zwalnia termin.
+Kwoty liczy wyłącznie serwer z `src/content/pricing.ts` (pełna kwota z cennika). Checkout jest hostowany przez Stripe; fulfillment idzie przez webhook `checkout.session.completed` (status `paid` + mail). Po 30 minutach bez płatności `checkout.session.expired` zwalnia termin.
 
 1. Ustaw `STRIPE_SECRET_KEY` i `STRIPE_WEBHOOK_SECRET`.
 2. W Dashboard włącz metody płatności (BLIK, karta itd.) — w kodzie nie ma `payment_method_types`.
@@ -178,7 +186,7 @@ Na darmowym planie Resend często przyjmuje tylko testy na e-mail właściciela 
 
 ## Testy ręczne zapisów
 
-`NEXT_PUBLIC_PAYMENTS_ENABLED` zostaw na `false`. Przygotuj otwarty slot (SQL w edytorze Supabase), np. w oknie najbliższych 21 dni:
+Przygotuj otwarty slot (SQL w edytorze Supabase), np. w oknie najbliższych 21 dni:
 
 ```sql
 insert into public.slots (location_id, starts_at, ends_at, status)

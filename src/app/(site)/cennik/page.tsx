@@ -7,11 +7,9 @@ import { Container } from "@/components/ui/Container";
 import { Reveal } from "@/components/ui/Reveal";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { cn } from "@/lib/cn";
-import { formatPlnFromCents } from "@/lib/money";
 import {
   isPromoSection,
   pricing,
-  RESERVATION_FEE_CENTS,
 } from "@/content/pricing";
 import type { LocationId } from "@/content/site";
 
@@ -84,9 +82,8 @@ export default async function CennikPage({ searchParams }: CennikPageProps) {
 
         <div className="mt-12 flex flex-col items-start gap-5 border-t border-white/5 pt-10 md:flex-row md:items-center md:justify-between">
           <p className="max-w-lg text-muted" suppressHydrationWarning>
-            Opłata rezerwacyjna za zapis online:{" "}
-            {formatPlnFromCents(RESERVATION_FEE_CENTS)} (odliczana od ceny
-            zajęć).
+            Zapis online opłacasz z góry (Stripe). Kwota jest liczona z tego
+            cennika.
           </p>
           <Button href="/grafik" size="lg">
             Zobacz grafik

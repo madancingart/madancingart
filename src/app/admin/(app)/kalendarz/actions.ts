@@ -6,13 +6,15 @@ import { requireAdmin } from "@/lib/admin/require-admin";
 import {
   addSlotsSchema,
   bookingIdSchema,
+  cancelBookingSchema,
   classSettingsSchema,
   createSlotSeriesSchema,
+  moveBookingSchema,
   slotIdSchema,
   slotSeriesOccupancySchema,
   slotTrainerSchema,
 } from "@/lib/admin/calendar-validation";
-import { fromDatetimeLocal } from "@/lib/datetime";
+import { formatBookingWhen, fromDatetimeLocal, toWarsaw } from "@/lib/datetime";
 import {
   addIsoDays,
   applyCollisions,
@@ -21,6 +23,10 @@ import {
   occupiedFromTrainerSlots,
   slotKey,
 } from "@/lib/slot-series";
+import { sendConfirmationReminderForBooking } from "@/lib/booking/reminders";
+import { confirmationHref } from "@/lib/booking/confirmation-window";
+import { sendSlotCancelledBySchoolEmail, sendSlotMovedEmail } from "@/lib/email";
+import { site } from "@/content/site";
 import type { ClassTypeRow, RecurringClassRow } from "@/lib/types";
 
 export type ActionResult =
@@ -34,8 +40,71 @@ function fail(error: string): { ok: false; error: string } {
 function revalidateCalendar() {
   revalidatePath("/admin/kalendarz");
   revalidatePath("/admin/zapisy");
+  revalidatePath("/admin/klienci", "layout");
   revalidatePath("/grafik");
   revalidatePath("/admin");
+}
+
+export async function markBookingConfirmedByPhone(
+  input: unknown,
+): Promise<ActionResult> {
+  const parsed = bookingIdSchema.safeParse(input);
+  if (!parsed.success) {
+    return fail("Niepoprawny identyfikator zapisu.");
+  }
+
+  const { user, supabase } = await requireAdmin();
+  const { data, error } = await supabase
+    .from("bookings")
+    .update({ confirmed_at: new Date().toISOString() })
+    .eq("id", parsed.data.bookingId)
+    .neq("status", "cancelled")
+    .is("confirmed_at", null)
+    .select("id,customer_id")
+    .maybeSingle();
+
+  if (error) {
+    return fail("Nie udało się oznaczyć potwierdzenia.");
+  }
+  if (!data) {
+    return fail("Rezerwacja jest już potwierdzona albo anulowana.");
+  }
+
+  await supabase.from("audit_log").insert({
+    actor_id: user.id,
+    actor_label: "ola",
+    action: "booking.confirmed_phone",
+    entity: "booking",
+    entity_id: data.id as string,
+    customer_id: (data.customer_id as string | null) ?? null,
+    details: { channel: "phone" },
+  });
+
+  revalidateCalendar();
+  return { ok: true, message: "Oznaczono jako potwierdzone." };
+}
+
+export async function resendConfirmationReminder(
+  input: unknown,
+): Promise<ActionResult> {
+  const parsed = bookingIdSchema.safeParse(input);
+  if (!parsed.success) {
+    return fail("Niepoprawny identyfikator zapisu.");
+  }
+
+  const { user, supabase } = await requireAdmin();
+  const result = await sendConfirmationReminderForBooking({
+    supabase,
+    bookingId: parsed.data.bookingId,
+    actorId: user.id,
+    actorLabel: "ola",
+    manual: true,
+  });
+  if (!result.ok) {
+    return fail(result.error);
+  }
+  revalidateCalendar();
+  return { ok: true, message: "Wysłano prośbę o potwierdzenie." };
 }
 
 export async function confirmBooking(input: unknown): Promise<ActionResult> {
@@ -60,12 +129,20 @@ export async function confirmBooking(input: unknown): Promise<ActionResult> {
 }
 
 export async function cancelBooking(input: unknown): Promise<ActionResult> {
-  const parsed = bookingIdSchema.safeParse(input);
+  const parsed = cancelBookingSchema.safeParse(input);
   if (!parsed.success) {
     return fail("Niepoprawny identyfikator zapisu.");
   }
 
   const { supabase } = await requireAdmin();
+  const { data: booking } = await supabase
+    .from("bookings")
+    .select(
+      "id,kind,first_name,email,status,slot_id,slots(starts_at,ends_at,location_id)",
+    )
+    .eq("id", parsed.data.bookingId)
+    .maybeSingle();
+
   const { error } = await supabase.rpc("admin_cancel_booking", {
     p_booking_id: parsed.data.bookingId,
   });
@@ -77,8 +154,133 @@ export async function cancelBooking(input: unknown): Promise<ActionResult> {
     return fail("Nie udało się anulować zapisu.");
   }
 
+  if (
+    parsed.data.notifyClient &&
+    booking &&
+    booking.kind === "slot" &&
+    booking.status !== "cancelled"
+  ) {
+    const email = (booking.email as string | null)?.trim() ?? "";
+    const slot = slotEmbed(
+      booking.slots as
+        | { starts_at: string; ends_at: string; location_id: string }
+        | { starts_at: string; ends_at: string; location_id: string }[]
+        | null,
+    );
+    if (email.includes("@") && slot) {
+      await sendSlotCancelledBySchoolEmail({
+        email,
+        firstName: booking.first_name as string,
+        when: formatBookingWhen(toWarsaw(slot.starts_at), toWarsaw(slot.ends_at)),
+        locationLine: locationLine(slot.location_id),
+      });
+    }
+  }
+
   revalidateCalendar();
   return { ok: true };
+}
+
+function slotEmbed(
+  value:
+    | { starts_at: string; ends_at: string; location_id: string }
+    | { starts_at: string; ends_at: string; location_id: string }[]
+    | null,
+): { starts_at: string; ends_at: string; location_id: string } | null {
+  if (!value) {
+    return null;
+  }
+  return Array.isArray(value) ? (value[0] ?? null) : value;
+}
+
+function locationLine(locationId: string): string {
+  const location = site.locations.find((item) => item.id === locationId);
+  return [location?.city, location?.address].filter(Boolean).join(", ");
+}
+
+export async function moveBooking(input: unknown): Promise<ActionResult> {
+  const parsed = moveBookingSchema.safeParse(input);
+  if (!parsed.success) {
+    return fail("Niepoprawne dane przeniesienia.");
+  }
+
+  const { supabase } = await requireAdmin();
+  const { data: before } = await supabase
+    .from("bookings")
+    .select(
+      "id,kind,status,first_name,email,slot_id,slots(starts_at,ends_at,location_id)",
+    )
+    .eq("id", parsed.data.bookingId)
+    .maybeSingle();
+
+  const { error } = await supabase.rpc("admin_move_booking", {
+    p_booking_id: parsed.data.bookingId,
+    p_new_slot_id: parsed.data.newSlotId,
+  });
+
+  if (error) {
+    if (error.message.includes("slot_unavailable")) {
+      return fail("Wybrany termin jest już zajęty.");
+    }
+    if (error.message.includes("booking_not_found")) {
+      return fail("Nie znaleziono zapisu.");
+    }
+    if (error.message.includes("same_slot")) {
+      return fail("Wybierz inny termin niż obecny.");
+    }
+    if (error.message.includes("not_slot_booking")) {
+      return fail("Przenieść można tylko lekcję indywidualną.");
+    }
+    return fail("Nie udało się przenieść rezerwacji.");
+  }
+
+  const { data: after } = await supabase
+    .from("bookings")
+    .select(
+      "first_name,email,confirm_token,slots(starts_at,ends_at,location_id)",
+    )
+    .eq("id", parsed.data.bookingId)
+    .maybeSingle();
+
+  const fromSlot = slotEmbed(
+    (before?.slots as
+      | { starts_at: string; ends_at: string; location_id: string }
+      | { starts_at: string; ends_at: string; location_id: string }[]
+      | null) ?? null,
+  );
+  const toSlot = slotEmbed(
+    (after?.slots as
+      | { starts_at: string; ends_at: string; location_id: string }
+      | { starts_at: string; ends_at: string; location_id: string }[]
+      | null) ?? null,
+  );
+  const email = (after?.email as string | null)?.trim() ?? "";
+  let mailed = false;
+  if (email.includes("@") && fromSlot && toSlot && after) {
+    mailed = await sendSlotMovedEmail({
+      email,
+      firstName: after.first_name as string,
+      fromWhen: formatBookingWhen(
+        toWarsaw(fromSlot.starts_at),
+        toWarsaw(fromSlot.ends_at),
+      ),
+      fromLocation: locationLine(fromSlot.location_id),
+      toWhen: formatBookingWhen(
+        toWarsaw(toSlot.starts_at),
+        toWarsaw(toSlot.ends_at),
+      ),
+      toLocation: locationLine(toSlot.location_id),
+      confirmUrl: confirmationHref(after.confirm_token as string),
+    });
+  }
+
+  revalidateCalendar();
+  return {
+    ok: true,
+    message: mailed
+      ? "Przeniesiono termin i wysłano mail do klienta."
+      : "Przeniesiono termin.",
+  };
 }
 
 export async function anonymizeBooking(input: unknown): Promise<ActionResult> {

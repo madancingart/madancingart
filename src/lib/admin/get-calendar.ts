@@ -99,6 +99,7 @@ function toBooking(row: BookingWithCustomer): AdminBooking {
     guardianPhone: customer?.guardian_phone ?? null,
     packageId: row.package_id,
     lessonNo: row.lesson_no,
+    confirmedAt: row.confirmed_at,
     weddingPackage: pkg
       ? {
           id: pkg.id,
@@ -176,7 +177,7 @@ export async function getAdminCalendar(
     const bookingsResult = await supabase
       .from("bookings")
       .select(
-        "id,kind,slot_id,recurring_class_id,event_id,first_name,last_name,phone,email,message,dance_type,status,payment_option,payment_status,stripe_checkout_session_id,amount_cents,consent_rodo,created_at,customer_id,package_id,lesson_no,customers(kind,partner_first_name,partner_last_name,guardian_name,guardian_phone),packages(id,kind,label,total_lessons,wedding_date,songs,status)",
+        "id,kind,slot_id,recurring_class_id,event_id,first_name,last_name,phone,email,message,dance_type,status,payment_option,payment_status,stripe_checkout_session_id,amount_cents,consent_rodo,created_at,customer_id,package_id,lesson_no,confirmed_at,customers(kind,partner_first_name,partner_last_name,guardian_name,guardian_phone),packages(id,kind,label,total_lessons,wedding_date,songs,status)",
       )
       .or(filters.join(","))
       .order("created_at", { ascending: true });

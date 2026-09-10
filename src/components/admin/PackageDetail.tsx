@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ScheduleLessonModal } from "@/components/admin/ScheduleLessonModal";
+import { CustomerNameLink } from "@/components/admin/CustomerNameLink";
 import { ToastProvider, useToast } from "@/components/admin/Toast";
 import { Button } from "@/components/ui/Button";
 import { telHref } from "@/lib/contact";
@@ -40,6 +41,7 @@ export type PackageDetailData = {
   paidAt: string | null;
   createdAt: string;
   customer: {
+    id: string;
     firstName: string;
     lastName: string;
     partnerFirstName: string | null;
@@ -97,10 +99,12 @@ function PackageDetailInner({ data }: { data: PackageDetailData }) {
         <p className="text-[12px] text-muted">{data.label}</p>
         <h1 className="text-2xl font-semibold text-cream">{couple}</h1>
         <p className="mt-1 text-[14px] text-muted">
-          {data.customer.firstName} {data.customer.lastName}
-          {data.customer.partnerFirstName
-            ? ` i ${data.customer.partnerFirstName} ${data.customer.partnerLastName ?? ""}`
-            : ""}
+          <CustomerNameLink customerId={data.customer.id}>
+            {data.customer.firstName} {data.customer.lastName}
+            {data.customer.partnerFirstName
+              ? ` i ${data.customer.partnerFirstName} ${data.customer.partnerLastName ?? ""}`
+              : ""}
+          </CustomerNameLink>
         </p>
       </div>
 

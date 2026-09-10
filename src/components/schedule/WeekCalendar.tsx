@@ -126,12 +126,24 @@ export function WeekCalendar({
           <article
             className={cn(
               "flex flex-col gap-2 border p-3",
-              status.canSignup
-                ? "border-white/10 bg-black-soft text-cream"
-                : "border-white/5 bg-black/30 text-muted",
+              status.cancelled
+                ? "border-white/5 bg-black/40 text-muted"
+                : status.canSignup
+                  ? "border-white/10 bg-black-soft text-cream"
+                  : "border-white/5 bg-black/30 text-muted",
             )}
+            aria-label={
+              status.cancelled ? `${item.name}, odwołane` : undefined
+            }
           >
-            <p className="font-semibold text-cream">{item.name}</p>
+            <p
+              className={cn(
+                "font-semibold",
+                status.cancelled ? "text-muted" : "text-cream",
+              )}
+            >
+              {item.name}
+            </p>
             {item.level ? (
               <p className="text-sm text-muted">{item.level}</p>
             ) : null}
@@ -145,7 +157,7 @@ export function WeekCalendar({
               </p>
             ) : null}
             {status.cancelled ? (
-              <p className="text-sm">Odwołane</p>
+              <p className="text-sm text-muted">Odwołane</p>
             ) : status.canSignup ? (
               <Button
                 size="sm"

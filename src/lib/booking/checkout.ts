@@ -22,8 +22,8 @@ export async function createBookingCheckout(params: {
     return {
       error:
         params.input.kind === "event"
-          ? "Dla wydarzeń dostępna jest opłata rezerwacyjna albo płatność na miejscu."
-          : "Nie udało się ustalić kwoty. Wybierz płatność na miejscu albo opłatę rezerwacyjną.",
+          ? "Na wydarzenia zapisz się telefonicznie — nie ma stałej ceny w cenniku."
+          : "Nie udało się ustalić kwoty za ten termin. Napisz do nas albo zadzwoń.",
       status: 400,
     };
   }
@@ -130,7 +130,7 @@ async function resolveQuote(input: BookingApiInput): Promise<ChargeQuote | null>
     const type = Array.isArray(raw) ? raw[0] : raw;
     const locationId = data.location_id as LocationId;
 
-    return quoteBookingCharge(input.paymentOption, {
+    return quoteBookingCharge({
       kind: "class",
       locationId,
       classSlug: type?.slug ?? null,
@@ -139,7 +139,7 @@ async function resolveQuote(input: BookingApiInput): Promise<ChargeQuote | null>
     });
   }
 
-  return quoteBookingCharge(input.paymentOption, {
+  return quoteBookingCharge({
     kind: input.kind,
     locationId: input.locationId,
     durationMin,

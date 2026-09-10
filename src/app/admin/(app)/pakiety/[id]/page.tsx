@@ -127,6 +127,7 @@ export default async function AdminPackageDetailPage({ params }: PageProps) {
         paidAt: (pkg.paid_at as string | null) ?? null,
         createdAt: pkg.created_at as string,
         customer: {
+          id: pkg.customer_id as string,
           firstName: customer.first_name,
           lastName: customer.last_name,
           partnerFirstName: customer.partner_first_name,

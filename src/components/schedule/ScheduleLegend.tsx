@@ -17,6 +17,10 @@ export function ScheduleLegend() {
           Zajęte
         </li>
         <li className="flex items-center gap-2">
+          <span className="size-3 shrink-0 border border-white/5 bg-black/40" />
+          Odwołane
+        </li>
+        <li className="flex items-center gap-2">
           <span className="size-3 shrink-0 bg-[image:var(--gold-gradient)]" />
           Wydarzenie
         </li>

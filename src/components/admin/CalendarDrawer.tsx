@@ -9,6 +9,7 @@ import { formatDatePl, formatDateTimeWarsaw } from "@/lib/datetime";
 import type { AdminBooking, AdminClass, AdminSlot, AdminTrainer } from "@/lib/admin/calendar-types";
 import type { LocationId } from "@/content/site";
 import { GroupMembersList } from "@/components/admin/GroupMembersList";
+import { CustomerNameLink } from "@/components/admin/CustomerNameLink";
 import { TrainerSelect } from "@/components/admin/TrainerSelect";
 import type { BookingStatus, PaymentStatus } from "@/lib/types";
 import { trainerShortName, UNASSIGNED_TRAINER_LABEL } from "@/lib/trainers";
@@ -17,11 +18,15 @@ import {
   cancelBooking,
   confirmBooking,
   deleteSlot,
+  markBookingConfirmedByPhone,
+  resendConfirmationReminder,
   unblockSlot,
   updateClassSettings,
   updateSlotTrainer,
 } from "@/app/admin/(app)/kalendarz/actions";
 import type { ActionResult } from "@/app/admin/(app)/kalendarz/actions";
+import { MoveBookingModal } from "@/components/admin/MoveBookingModal";
+import { CancelClassOccurrenceForm } from "@/components/admin/CancelClassOccurrenceForm";
 import {
   attachBookingToPackage,
   listActivePackagesForCustomer,
@@ -55,7 +60,8 @@ type ConfirmState = {
   title: string;
   body: string;
   confirmLabel: string;
-  run: () => Promise<ActionResult>;
+  run: (notifyClient?: boolean) => Promise<ActionResult>;
+  notifyOption?: boolean;
 };
 
 type CalendarDrawerProps = {
@@ -78,9 +84,12 @@ export function CalendarDrawer({
   const ref = useRef<HTMLDialogElement>(null);
   const [confirm, setConfirm] = useState<ConfirmState | null>(null);
   const [pending, setPending] = useState(false);
+  const [notifyClient, setNotifyClient] = useState(true);
+  const [moving, setMoving] = useState(false);
 
   function closeDrawer() {
     setConfirm(null);
+    setMoving(false);
     onClose();
   }
 
@@ -97,7 +106,10 @@ export function CalendarDrawer({
     }
   }, [open]);
 
-  async function run(action: () => Promise<ActionResult>, closeDrawer = false) {
+  async function run(
+    action: () => Promise<ActionResult>,
+    closeDrawer = false,
+  ) {
     setPending(true);
     const result = await action();
     setPending(false);
@@ -188,6 +200,12 @@ export function CalendarDrawer({
                     run: () => cancelBooking({ bookingId: booking.id }),
                   })
                 }
+                onCancelOccurrenceDone={(message) => {
+                  void run(async () => ({ ok: true, message }));
+                }}
+                onCancelOccurrenceError={(message) => {
+                  void run(async () => ({ ok: false, error: message }));
+                }}
                 onPaymentDone={(message) => {
                   void run(async () => ({ ok: true, message }));
                 }}
@@ -214,14 +232,31 @@ export function CalendarDrawer({
                 onConfirm={(booking) =>
                   run(() => confirmBooking({ bookingId: booking.id }))
                 }
-                onCancelBooking={(booking) =>
+                onMarkConfirmed={(booking) =>
+                  run(() =>
+                    markBookingConfirmedByPhone({ bookingId: booking.id }),
+                  )
+                }
+                onResendReminder={(booking) =>
+                  run(() =>
+                    resendConfirmationReminder({ bookingId: booking.id }),
+                  )
+                }
+                onCancelBooking={(booking) => {
+                  setNotifyClient(true);
                   setConfirm({
                     title: "Anulować rezerwację?",
                     body: "Zapis zostanie anulowany, a termin wróci jako wolny na stronie publicznej.",
                     confirmLabel: "Anuluj rezerwację",
-                    run: () => cancelBooking({ bookingId: booking.id }),
-                  })
-                }
+                    notifyOption: Boolean(booking.email),
+                    run: (notify) =>
+                      cancelBooking({
+                        bookingId: booking.id,
+                        notifyClient: Boolean(notify),
+                      }),
+                  });
+                }}
+                onMove={() => setMoving(true)}
                 onBlock={() =>
                   setConfirm({
                     title: "Zablokować termin?",
@@ -254,6 +289,18 @@ export function CalendarDrawer({
                     {confirm.title}
                   </h3>
                   <p className="mt-2 text-[14px] text-muted">{confirm.body}</p>
+                  {confirm.notifyOption ? (
+                    <label className="mt-3 flex min-h-11 items-center gap-2 text-[13px] text-cream">
+                      <input
+                        type="checkbox"
+                        checked={notifyClient}
+                        onChange={(event) =>
+                          setNotifyClient(event.target.checked)
+                        }
+                      />
+                      Wyślij mail do klienta (przeprosiny i link do grafiku)
+                    </label>
+                  ) : null}
                   <div className="mt-4 flex justify-end gap-2">
                     <Button
                       type="button"
@@ -270,7 +317,7 @@ export function CalendarDrawer({
                       disabled={pending}
                       onClick={() => {
                         void run(
-                          confirm.run,
+                          () => confirm.run(notifyClient),
                           confirm.confirmLabel === "Usuń slot",
                         );
                       }}
@@ -284,6 +331,23 @@ export function CalendarDrawer({
           </div>
         </div>
       </dialog>
+      {moving && target?.kind === "slot" && target.item.booking ? (
+        <MoveBookingModal
+          bookingId={target.item.booking.id}
+          fromStartsAt={target.item.startsAt}
+          fromLocationId={target.item.locationId}
+          fromTrainerId={target.item.trainerId}
+          trainers={trainers}
+          onClose={() => setMoving(false)}
+          onDone={(message) => {
+            setMoving(false);
+            void run(async () => ({ ok: true, message }), true);
+          }}
+          onError={(message) => {
+            void run(async () => ({ ok: false, error: message }));
+          }}
+        />
+      ) : null}
     </>
   );
 }
@@ -298,6 +362,8 @@ function ClassPanel({
   onSaveTrainer,
   onConfirm,
   onCancel,
+  onCancelOccurrenceDone,
+  onCancelOccurrenceError,
   onPaymentDone,
   onPaymentError,
 }: {
@@ -310,6 +376,8 @@ function ClassPanel({
   onSaveTrainer: (trainerId: string) => void;
   onConfirm: (booking: AdminBooking) => void;
   onCancel: (booking: AdminBooking) => void;
+  onCancelOccurrenceDone: (message: string) => void;
+  onCancelOccurrenceError: (message: string) => void;
   onPaymentDone: (message: string) => void;
   onPaymentError: (message: string) => void;
 }) {
@@ -327,6 +395,13 @@ function ClassPanel({
       </p>
       {cancelled ? (
         <p className="text-[13px] text-muted">To wystąpienie jest odwołane.</p>
+      ) : sessionDateIso ? (
+        <CancelClassOccurrenceForm
+          classId={item.id}
+          sessionDate={sessionDateIso}
+          onDone={onCancelOccurrenceDone}
+          onError={onCancelOccurrenceError}
+        />
       ) : null}
       <Link
         href={journalHref}
@@ -406,7 +481,10 @@ function SlotPanel({
   pending,
   onSaveTrainer,
   onConfirm,
+  onMarkConfirmed,
+  onResendReminder,
   onCancelBooking,
+  onMove,
   onBlock,
   onUnblock,
   onDelete,
@@ -417,7 +495,10 @@ function SlotPanel({
   pending: boolean;
   onSaveTrainer: (trainerId: string) => void;
   onConfirm: (booking: AdminBooking) => void;
+  onMarkConfirmed: (booking: AdminBooking) => void;
+  onResendReminder: (booking: AdminBooking) => void;
   onCancelBooking: (booking: AdminBooking) => void;
+  onMove: () => void;
   onBlock: () => void;
   onUnblock: () => void;
   onDelete: () => void;
@@ -469,6 +550,11 @@ function SlotPanel({
           />
           <p className="mt-2 text-[13px] text-muted">
             {paymentLabel(booking.paymentStatus)}
+            {booking.confirmedAt
+              ? " · potwierdzony"
+              : booking.status !== "cancelled"
+                ? " · czeka na potwierdzenie"
+                : ""}
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             {booking.status === "pending" ? (
@@ -479,6 +565,38 @@ function SlotPanel({
                 onClick={() => onConfirm(booking)}
               >
                 Potwierdź
+              </Button>
+            ) : null}
+            {!booking.confirmedAt && booking.status !== "cancelled" ? (
+              <Button
+                type="button"
+                size="sm"
+                disabled={pending}
+                onClick={() => onMarkConfirmed(booking)}
+              >
+                Oznacz jako potwierdzone (tel.)
+              </Button>
+            ) : null}
+            {!booking.confirmedAt && booking.status !== "cancelled" ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={pending}
+                onClick={() => onResendReminder(booking)}
+              >
+                Wyślij ponownie prośbę o potwierdzenie
+              </Button>
+            ) : null}
+            {booking.status !== "cancelled" ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                disabled={pending}
+                onClick={onMove}
+              >
+                Przenieś na inny termin
               </Button>
             ) : null}
             {booking.status !== "cancelled" ? (
@@ -560,19 +678,35 @@ function BookingIdentity({ booking }: { booking: AdminBooking }) {
       {isPair ? (
         <>
           <p className="text-[12px] text-muted">Pierwsza osoba</p>
-          <p className="text-cream">{firstLabel}</p>
+          <p className="text-cream">
+            <CustomerNameLink customerId={booking.customerId}>
+              {firstLabel}
+            </CustomerNameLink>
+          </p>
           <p className="mt-2 text-[12px] text-muted">Druga osoba</p>
-          <p className="text-cream">{partnerLabel || "—"}</p>
+          <p className="text-cream">
+            <CustomerNameLink customerId={booking.customerId}>
+              {partnerLabel || "—"}
+            </CustomerNameLink>
+          </p>
         </>
       ) : isChild ? (
         <>
           <p className="text-[12px] text-muted">Dziecko</p>
-          <p className="text-cream">{firstLabel}</p>
+          <p className="text-cream">
+            <CustomerNameLink customerId={booking.customerId}>
+              {firstLabel}
+            </CustomerNameLink>
+          </p>
           <p className="mt-2 text-[12px] text-muted">Rodzic / opiekun</p>
           <p className="text-cream">{booking.guardianName || "—"}</p>
         </>
       ) : (
-        <p className="text-cream">{firstLabel}</p>
+        <p className="text-cream">
+          <CustomerNameLink customerId={booking.customerId}>
+            {firstLabel}
+          </CustomerNameLink>
+        </p>
       )}
       <p className="mt-1 text-[13px]">
         {isChild ? (

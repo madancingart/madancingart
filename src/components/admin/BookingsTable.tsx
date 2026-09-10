@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { MembershipBadge } from "@/components/admin/MembershipBadge";
+import { CustomerNameLink } from "@/components/admin/CustomerNameLink";
 import { ToastProvider, useToast } from "@/components/admin/Toast";
 import { telHref } from "@/lib/contact";
 import {
@@ -25,7 +26,8 @@ type ConfirmState = {
   title: string;
   body: string;
   confirmLabel: string;
-  run: () => Promise<ActionResult>;
+  run: (notifyClient?: boolean) => Promise<ActionResult>;
+  notifyOption?: boolean;
 };
 
 export function BookingsTable({ rows }: { rows: AdminBookingListRow[] }) {
@@ -41,6 +43,7 @@ function BookingsTableInner({ rows }: { rows: AdminBookingListRow[] }) {
   const toast = useToast();
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<ConfirmState | null>(null);
+  const [notifyClient, setNotifyClient] = useState(true);
 
   async function run(action: () => Promise<ActionResult>) {
     setPendingId("busy");
@@ -73,7 +76,11 @@ function BookingsTableInner({ rows }: { rows: AdminBookingListRow[] }) {
           {rows.map((row) => (
             <tr key={row.id} className="border-b border-white/5 align-top">
               <td className="px-2 py-3 text-muted">{createdLabel(row.createdAt)}</td>
-              <td className="px-2 py-3 text-cream">{personLabel(row)}</td>
+              <td className="px-2 py-3 text-cream">
+                <CustomerNameLink customerId={row.customerId}>
+                  {personLabel(row)}
+                </CustomerNameLink>
+              </td>
               <td className="px-2 py-3">
                 {row.phone ? (
                   <a
@@ -123,14 +130,20 @@ function BookingsTableInner({ rows }: { rows: AdminBookingListRow[] }) {
                       size="sm"
                       variant="outline"
                       disabled={Boolean(pendingId)}
-                      onClick={() =>
+                      onClick={() => {
+                        setNotifyClient(true);
                         setConfirm({
                           title: "Anulować zapis?",
                           body: "Status zmieni się na anulowany. Przy lekcji indywidualnej termin wróci jako wolny.",
                           confirmLabel: "Anuluj",
-                          run: () => cancelBooking({ bookingId: row.id }),
-                        })
-                      }
+                          notifyOption: row.kind === "slot" && Boolean(row.email),
+                          run: (notify) =>
+                            cancelBooking({
+                              bookingId: row.id,
+                              notifyClient: row.kind === "slot" && Boolean(notify),
+                            }),
+                        });
+                      }}
                     >
                       Anuluj
                     </Button>
@@ -163,6 +176,16 @@ function BookingsTableInner({ rows }: { rows: AdminBookingListRow[] }) {
           <div className="w-[min(100%,24rem)] border border-white/10 bg-black-soft p-5">
             <h2 className="text-[16px] font-semibold text-cream">{confirm.title}</h2>
             <p className="mt-2 text-[14px] text-muted">{confirm.body}</p>
+            {confirm.notifyOption ? (
+              <label className="mt-3 flex min-h-11 items-center gap-2 text-[13px] text-cream">
+                <input
+                  type="checkbox"
+                  checked={notifyClient}
+                  onChange={(event) => setNotifyClient(event.target.checked)}
+                />
+                Wyślij mail do klienta (przeprosiny i link do grafiku)
+              </label>
+            ) : null}
             <div className="mt-5 flex justify-end gap-2">
               <Button
                 type="button"
@@ -176,7 +199,7 @@ function BookingsTableInner({ rows }: { rows: AdminBookingListRow[] }) {
                 type="button"
                 size="sm"
                 disabled={Boolean(pendingId)}
-                onClick={() => void run(confirm.run)}
+                onClick={() => void run(() => confirm.run(notifyClient))}
               >
                 {confirm.confirmLabel}
               </Button>

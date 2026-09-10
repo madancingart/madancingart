@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { addMinutes, differenceInMinutes, getISODay, isSameDay } from "date-fns";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Check } from "lucide-react";
 import { AddSlotModal } from "@/components/admin/AddSlotModal";
 import { AddSlotSeriesModal } from "@/components/admin/AddSlotSeriesModal";
 import { CalendarDrawer } from "@/components/admin/CalendarDrawer";
@@ -22,6 +22,7 @@ import {
   weekDaysFromIso,
 } from "@/lib/datetime";
 import { adminCalendarHref, type AdminKindFilter } from "@/lib/admin/calendar-url";
+import { isUnconfirmedUrgent } from "@/lib/booking/confirmation-window";
 import type { AdminCalendarData, AdminClass, AdminSlot } from "@/lib/admin/calendar-types";
 import { isWeddingPackageKind } from "@/content/packages";
 import { weddingSlotTileLabel } from "@/lib/packages/couple-label";
@@ -258,6 +259,7 @@ function AdminWeekCalendarInner({
           hourLabels={hourLabels}
           onEmpty={(clientY, top) => openEmpty(selectedDay, clientY, top)}
           onOpen={setDrawerId}
+          now={now}
         />
       </div>
 
@@ -300,6 +302,7 @@ function AdminWeekCalendarInner({
               onEmpty={(clientY, top) => openEmpty(day, clientY, top)}
               onOpen={setDrawerId}
               compact
+              now={now}
             />
           ))}
         </div>
@@ -348,6 +351,7 @@ function DayGrid({
   onEmpty,
   onOpen,
   compact = false,
+  now,
 }: {
   day: Date;
   data: AdminCalendarData;
@@ -355,6 +359,7 @@ function DayGrid({
   onEmpty: (clientY: number, gridTop: number) => void;
   onOpen: (target: DrawerId) => void;
   compact?: boolean;
+  now: Date;
 }) {
   const weekday = getISODay(day);
   const classes = data.classes.filter((item) => item.weekday === weekday);
@@ -423,11 +428,19 @@ function DayGrid({
       {slots.map((item) => {
         const start = toWarsaw(item.startsAt);
         const end = toWarsaw(item.endsAt);
+        const confirmed = Boolean(item.booking?.confirmedAt);
+        const urgentUnconfirmed =
+          Boolean(item.booking) &&
+          !confirmed &&
+          item.booking?.status !== "cancelled" &&
+          isUnconfirmedUrgent(start, now);
         const tone =
           item.status === "open"
             ? "border-gold bg-gold/10 text-gold"
             : item.status === "booked"
-              ? "border-gold bg-[image:var(--gold-gradient)] text-black"
+              ? urgentUnconfirmed
+                ? "border-2 border-[#E8A0A0] bg-[image:var(--gold-gradient)] text-black"
+                : "border-gold bg-[image:var(--gold-gradient)] text-black"
               : "border-white/10 bg-white/10 text-muted";
         const name =
           item.booking?.weddingPackage &&
@@ -453,6 +466,13 @@ function DayGrid({
             accent={trainerAccent(item.trainerId)}
             onClick={() => onOpen({ kind: "slot", id: item.id })}
           >
+            {confirmed ? (
+              <Check
+                strokeWidth={1.5}
+                className="absolute top-1 right-1 size-3.5 text-[#8C6516]"
+                aria-hidden
+              />
+            ) : null}
             <p className="truncate text-[12px] font-semibold">{name}</p>
             <p className="text-[11px] opacity-80">
               {formatClock(start)}

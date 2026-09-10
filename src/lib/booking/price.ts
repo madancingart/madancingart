@@ -1,8 +1,5 @@
-import {
-  priceAmountCents,
-  RESERVATION_FEE_CENTS,
-} from "@/content/pricing";
-import type { BookingKind, LocationId, PaymentOption } from "@/lib/types";
+import { priceAmountCents } from "@/content/pricing";
+import type { BookingKind, LocationId } from "@/lib/types";
 
 export type ChargeContext = {
   kind: BookingKind;
@@ -19,21 +16,8 @@ export type ChargeQuote = {
 };
 
 export function quoteBookingCharge(
-  option: PaymentOption,
   context: ChargeContext,
 ): ChargeQuote | null {
-  if (option === "onsite") {
-    return null;
-  }
-
-  if (option === "reservation") {
-    return {
-      amountCents: RESERVATION_FEE_CENTS,
-      productName: "Opłata rezerwacyjna — M&A Dancing Art",
-      productDescription: context.title,
-    };
-  }
-
   const amountCents = fullAmountCents(context);
   if (amountCents === null) {
     return null;

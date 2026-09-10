@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { warsawTodayIso } from "@/lib/datetime";
-import type { BookingKind, CustomerKind, PaymentOption } from "@/lib/types";
+import type { BookingKind, CustomerKind } from "@/lib/types";
 
 export const DANCE_TYPES = [
   "Pierwszy taniec weselny",
@@ -93,7 +93,10 @@ const bookingSharedFields = {
     .default("")
     .transform((value) => value.trim()),
   danceType: z.string().optional(),
-  paymentOption: z.enum(["onsite", "reservation", "full"]),
+  paymentOption: z
+    .enum(["onsite", "reservation", "full"])
+    .default("full")
+    .transform((): "full" => "full"),
   consentRodo: z.boolean().refine((value) => value === true, {
     error: "Zgoda na przetwarzanie danych jest wymagana.",
   }),
@@ -184,13 +187,8 @@ export const bookingApiSchema = z
 
 export type BookingApiInput = z.infer<typeof bookingApiSchema>;
 
-export function coercePaymentOption(
-  option: PaymentOption,
-): PaymentOption {
-  if (!isPaymentsEnabled()) {
-    return "onsite";
-  }
-  return option;
+export function coercePaymentOption(): "full" {
+  return "full";
 }
 
 export function formCustomerKindForTarget(input: {

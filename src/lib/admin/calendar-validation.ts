@@ -30,6 +30,16 @@ export const bookingIdSchema = z.object({
   bookingId: z.uuid(),
 });
 
+export const cancelBookingSchema = z.object({
+  bookingId: z.uuid(),
+  notifyClient: z.boolean().optional(),
+});
+
+export const moveBookingSchema = z.object({
+  bookingId: z.uuid(),
+  newSlotId: z.uuid(),
+});
+
 export const slotIdSchema = z.object({
   slotId: z.uuid(),
 });

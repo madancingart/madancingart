@@ -41,6 +41,7 @@ export type AdminBooking = {
   packageId: string | null;
   lessonNo: number | null;
   weddingPackage: AdminBookingPackage | null;
+  confirmedAt: string | null;
 };
 
 export type AdminClass = {

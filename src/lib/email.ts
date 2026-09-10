@@ -2,6 +2,8 @@ import "server-only";
 
 import { Resend } from "resend";
 import { site } from "@/content/site";
+import { chunkItems, RESEND_BATCH_SIZE } from "@/lib/mail/batch";
+import { publicSiteUrl } from "@/lib/booking/confirmation-window";
 import type { BookingTermSummary } from "@/lib/booking/term";
 
 const FROM = "M&A Dancing Art <onboarding@resend.dev>";
@@ -290,4 +292,292 @@ export async function sendPackageActivatedCoupleEmail(
   if (result.error) {
     console.error("Resend odrzucił wiadomość aktywacji pakietu.", result.error);
   }
+}
+
+export type SlotReminderEmailPayload = {
+  firstName: string;
+  confirmUrl: string;
+  when: string;
+  locationLine: string;
+};
+
+function reminderHtml(payload: SlotReminderEmailPayload): string {
+  return wrap(`
+    <p style="margin:0 0 4px;color:#C9962E;font-size:13px;letter-spacing:0.12em;">M&amp;A DANCING ART</p>
+    <h1 style="margin:0 0 20px;font-size:22px;color:#F5EFE4;">Potwierdź swój termin</h1>
+    <p style="margin:0 0 20px;color:#F5EFE4;line-height:1.5;">
+      Cześć ${escapeHtml(payload.firstName)}, zbliża się Twoja lekcja. Potwierdź proszę obecność,
+      klikając przycisk poniżej.
+    </p>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+      ${cell("Kiedy", payload.when)}
+      ${cell("Gdzie", payload.locationLine)}
+    </table>
+    <p style="margin:28px 0;">
+      <a href="${escapeHtml(payload.confirmUrl)}"
+        style="display:inline-block;padding:12px 22px;background:linear-gradient(135deg,#8C6516,#C9962E 45%,#F0D080 70%,#C9962E);color:#0B0B0D;text-decoration:none;font-size:15px;">
+        Potwierdź termin
+      </a>
+    </p>
+    <p style="margin:0;color:#F5EFE4;line-height:1.5;">
+      W razie przeszkód prosimy o telefon:
+      <a href="tel:+48539143200" style="color:#C9962E;">${escapeHtml(site.phone)}</a>
+    </p>
+    <p style="margin:24px 0 0;color:#9A948A;font-size:12px;line-height:1.5;">
+      M&amp;A Dancing Art · Mikołów, ul. Świerkowa 3 · Lubliniec, ul. Oleska 85<br />
+      ${escapeHtml(site.email)}
+    </p>
+  `);
+}
+
+function releasedHtml(payload: {
+  firstName: string;
+  when: string;
+  locationLine: string;
+}): string {
+  return wrap(`
+    <p style="margin:0 0 4px;color:#C9962E;font-size:13px;letter-spacing:0.12em;">M&amp;A DANCING ART</p>
+    <h1 style="margin:0 0 20px;font-size:22px;color:#F5EFE4;">Termin zwolniony</h1>
+    <p style="margin:0 0 20px;color:#F5EFE4;line-height:1.5;">
+      Cześć ${escapeHtml(payload.firstName)}, nie otrzymaliśmy potwierdzenia obecności,
+      więc zwolniliśmy Twój termin, żeby ktoś inny mógł z niego skorzystać.
+    </p>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+      ${cell("Kiedy", payload.when)}
+      ${cell("Gdzie", payload.locationLine)}
+    </table>
+    <p style="margin:24px 0 0;color:#F5EFE4;line-height:1.5;">
+      Chcesz umówić się ponownie? Zadzwoń:
+      <a href="tel:+48539143200" style="color:#C9962E;">${escapeHtml(site.phone)}</a>
+    </p>
+    <p style="margin:24px 0 0;color:#9A948A;font-size:12px;line-height:1.5;">
+      M&amp;A Dancing Art · Mikołów, ul. Świerkowa 3 · Lubliniec, ul. Oleska 85<br />
+      ${escapeHtml(site.email)}
+    </p>
+  `);
+}
+
+async function sendHtmlMail(input: {
+  to: string;
+  subject: string;
+  html: string;
+  missingKeyLog: string;
+}): Promise<boolean> {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    console.error(input.missingKeyLog);
+    return false;
+  }
+  const resend = new Resend(apiKey);
+  const result = await resend.emails.send({
+    from: FROM,
+    to: input.to,
+    subject: input.subject,
+    html: input.html,
+  });
+  if (result.error) {
+    console.error("Resend odrzucił wiadomość.", result.error);
+    return false;
+  }
+  return true;
+}
+
+export async function sendSlotConfirmationReminderEmail(
+  payload: SlotReminderEmailPayload & { email: string },
+): Promise<boolean> {
+  return sendHtmlMail({
+    to: payload.email,
+    subject: "Potwierdź swój termin — M&A Dancing Art",
+    html: reminderHtml(payload),
+    missingKeyLog:
+      "Brak RESEND_API_KEY — pomijam przypomnienie o potwierdzeniu.",
+  });
+}
+
+export async function sendSlotReleasedEmail(payload: {
+  email: string;
+  firstName: string;
+  when: string;
+  locationLine: string;
+}): Promise<boolean> {
+  return sendHtmlMail({
+    to: payload.email,
+    subject: "Termin zwolniony — M&A Dancing Art",
+    html: releasedHtml(payload),
+    missingKeyLog: "Brak RESEND_API_KEY — pomijam mail o zwolnieniu terminu.",
+  });
+}
+
+function movedHtml(payload: {
+  firstName: string;
+  fromWhen: string;
+  fromLocation: string;
+  toWhen: string;
+  toLocation: string;
+  confirmUrl: string;
+}): string {
+  return wrap(`
+    <p style="margin:0 0 4px;color:#C9962E;font-size:13px;letter-spacing:0.12em;">M&amp;A DANCING ART</p>
+    <h1 style="margin:0 0 20px;font-size:22px;color:#F5EFE4;">Zmiana terminu</h1>
+    <p style="margin:0 0 20px;color:#F5EFE4;line-height:1.5;">
+      Cześć ${escapeHtml(payload.firstName)}, przenieśliśmy Twoją lekcję na inny termin.
+      Potwierdź proszę nowy termin, klikając przycisk poniżej.
+    </p>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+      ${cell("Z", `${payload.fromWhen} · ${payload.fromLocation}`)}
+      ${cell("Na", `${payload.toWhen} · ${payload.toLocation}`)}
+    </table>
+    <p style="margin:28px 0;">
+      <a href="${escapeHtml(payload.confirmUrl)}"
+        style="display:inline-block;padding:12px 22px;background:linear-gradient(135deg,#8C6516,#C9962E 45%,#F0D080 70%,#C9962E);color:#0B0B0D;text-decoration:none;font-size:15px;">
+        Potwierdź nowy termin
+      </a>
+    </p>
+    <p style="margin:0;color:#F5EFE4;line-height:1.5;">
+      W razie pytań:
+      <a href="tel:+48539143200" style="color:#C9962E;">${escapeHtml(site.phone)}</a>
+    </p>
+    <p style="margin:24px 0 0;color:#9A948A;font-size:12px;line-height:1.5;">
+      M&amp;A Dancing Art · Mikołów, ul. Świerkowa 3 · Lubliniec, ul. Oleska 85<br />
+      ${escapeHtml(site.email)}
+    </p>
+  `);
+}
+
+function schoolCancelledSlotHtml(payload: {
+  firstName: string;
+  when: string;
+  locationLine: string;
+  grafikUrl: string;
+}): string {
+  return wrap(`
+    <p style="margin:0 0 4px;color:#C9962E;font-size:13px;letter-spacing:0.12em;">M&amp;A DANCING ART</p>
+    <h1 style="margin:0 0 20px;font-size:22px;color:#F5EFE4;">Odwołanie lekcji</h1>
+    <p style="margin:0 0 20px;color:#F5EFE4;line-height:1.5;">
+      Cześć ${escapeHtml(payload.firstName)}, bardzo nam przykro — musieliśmy odwołać
+      Twoją lekcję. Zapraszamy do grafiku, żeby wybrać nowy termin.
+    </p>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+      ${cell("Kiedy", payload.when)}
+      ${cell("Gdzie", payload.locationLine)}
+    </table>
+    <p style="margin:28px 0;">
+      <a href="${escapeHtml(payload.grafikUrl)}"
+        style="display:inline-block;padding:12px 22px;background:linear-gradient(135deg,#8C6516,#C9962E 45%,#F0D080 70%,#C9962E);color:#0B0B0D;text-decoration:none;font-size:15px;">
+        Otwórz grafik
+      </a>
+    </p>
+    <p style="margin:0;color:#F5EFE4;line-height:1.5;">
+      Telefon:
+      <a href="tel:+48539143200" style="color:#C9962E;">${escapeHtml(site.phone)}</a>
+    </p>
+    <p style="margin:24px 0 0;color:#9A948A;font-size:12px;line-height:1.5;">
+      M&amp;A Dancing Art · Mikołów, ul. Świerkowa 3 · Lubliniec, ul. Oleska 85<br />
+      ${escapeHtml(site.email)}
+    </p>
+  `);
+}
+
+function classCancelledHtml(payload: {
+  title: string;
+  when: string;
+  locationLine: string;
+  reason: string | null;
+}): string {
+  const reasonBlock = payload.reason
+    ? cell("Powód", payload.reason)
+    : "";
+  return wrap(`
+    <p style="margin:0 0 4px;color:#C9962E;font-size:13px;letter-spacing:0.12em;">M&amp;A DANCING ART</p>
+    <h1 style="margin:0 0 20px;font-size:22px;color:#F5EFE4;">Odwołane zajęcia</h1>
+    <p style="margin:0 0 20px;color:#F5EFE4;line-height:1.5;">
+      Odwołujemy zajęcia „${escapeHtml(payload.title)}”. Lekcję będzie można odrobić —
+      zadzwoń lub napisz, umówimy inny termin.
+    </p>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+      ${cell("Kiedy", payload.when)}
+      ${cell("Gdzie", payload.locationLine)}
+      ${reasonBlock}
+    </table>
+    <p style="margin:24px 0 0;color:#F5EFE4;line-height:1.5;">
+      Telefon:
+      <a href="tel:+48539143200" style="color:#C9962E;">${escapeHtml(site.phone)}</a>
+    </p>
+    <p style="margin:24px 0 0;color:#9A948A;font-size:12px;line-height:1.5;">
+      M&amp;A Dancing Art · Mikołów, ul. Świerkowa 3 · Lubliniec, ul. Oleska 85<br />
+      ${escapeHtml(site.email)}
+    </p>
+  `);
+}
+
+export async function sendSlotMovedEmail(payload: {
+  email: string;
+  firstName: string;
+  fromWhen: string;
+  fromLocation: string;
+  toWhen: string;
+  toLocation: string;
+  confirmUrl: string;
+}): Promise<boolean> {
+  return sendHtmlMail({
+    to: payload.email,
+    subject: "Zmiana terminu lekcji — M&A Dancing Art",
+    html: movedHtml(payload),
+    missingKeyLog: "Brak RESEND_API_KEY — pomijam mail o przeniesieniu terminu.",
+  });
+}
+
+export async function sendSlotCancelledBySchoolEmail(payload: {
+  email: string;
+  firstName: string;
+  when: string;
+  locationLine: string;
+}): Promise<boolean> {
+  return sendHtmlMail({
+    to: payload.email,
+    subject: "Odwołanie lekcji — M&A Dancing Art",
+    html: schoolCancelledSlotHtml({
+      ...payload,
+      grafikUrl: `${publicSiteUrl()}/grafik`,
+    }),
+    missingKeyLog: "Brak RESEND_API_KEY — pomijam mail o odwołaniu lekcji.",
+  });
+}
+
+export async function sendClassSessionCancelledEmails(input: {
+  emails: string[];
+  title: string;
+  when: string;
+  locationLine: string;
+  reason: string | null;
+}): Promise<number> {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    console.error("Brak RESEND_API_KEY — pomijam maile o odwołaniu zajęć.");
+    return 0;
+  }
+  const html = classCancelledHtml({
+    title: input.title,
+    when: input.when,
+    locationLine: input.locationLine,
+    reason: input.reason,
+  });
+  const resend = new Resend(apiKey);
+  let sent = 0;
+  for (const chunk of chunkItems(input.emails, RESEND_BATCH_SIZE)) {
+    const result = await resend.batch.send(
+      chunk.map((email) => ({
+        from: FROM,
+        to: email,
+        subject: `Odwołane zajęcia: ${input.title} — M&A Dancing Art`,
+        html,
+      })),
+    );
+    if (result.error) {
+      console.error("Resend odrzucił paczkę maili o odwołaniu zajęć.", result.error);
+      continue;
+    }
+    sent += chunk.length;
+  }
+  return sent;
 }

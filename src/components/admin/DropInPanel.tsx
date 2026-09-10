@@ -8,6 +8,7 @@ import {
   type SearchCustomerRow,
 } from "@/app/admin/(app)/ewidencja/actions";
 import { Button } from "@/components/ui/Button";
+import { CustomerNameLink } from "@/components/admin/CustomerNameLink";
 import { useToast } from "@/components/admin/Toast";
 
 type DropInPanelProps = {
@@ -96,17 +97,20 @@ export function DropInPanel({
       {rows.length > 0 ? (
         <ul className="mt-2 flex flex-col gap-1">
           {rows.map((row) => (
-            <li key={row.id}>
+            <li
+              key={row.id}
+              className="flex min-h-11 items-center justify-between gap-2 border border-white/10 px-3 text-[13px]"
+            >
+              <CustomerNameLink customerId={row.id}>
+                {row.firstName} {row.lastName}
+              </CustomerNameLink>
               <button
                 type="button"
                 disabled={pending}
                 onClick={() => addExisting(row.id)}
-                className="flex min-h-11 w-full items-center justify-between gap-2 border border-white/10 px-3 text-left text-[13px] text-cream hover:border-gold"
+                className="shrink-0 text-gold hover:text-gold-light"
               >
-                <span>
-                  {row.firstName} {row.lastName}
-                </span>
-                <span className="text-muted">{row.phone ?? row.email ?? ""}</span>
+                Dopisz
               </button>
             </li>
           ))}

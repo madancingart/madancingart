@@ -1,12 +1,13 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { Check } from "lucide-react";
-import { cancelClassSession, toggleAttendance } from "@/app/admin/(app)/ewidencja/actions";
+import { toggleAttendance } from "@/app/admin/(app)/ewidencja/actions";
+import { CancelClassOccurrenceForm } from "@/components/admin/CancelClassOccurrenceForm";
 import { DropInPanel } from "@/components/admin/DropInPanel";
+import { CustomerNameLink } from "@/components/admin/CustomerNameLink";
 import { ToastProvider, useToast } from "@/components/admin/Toast";
-import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
 import { clockFromDbTime, formatDatePl, weekdayLongLabel } from "@/lib/datetime";
 import type { JournalData, JournalPerson } from "@/lib/admin/journal-types";
@@ -46,8 +47,6 @@ function AttendanceJournalInner({ data }: { data: JournalData }) {
   const cancelled = data.sessionStatus === "cancelled";
   const [overlays, setOverlays] = useState<Record<string, PersonOverlay>>({});
   const [pendingKey, setPendingKey] = useState<string | null>(null);
-  const [reason, setReason] = useState("");
-  const [cancelPending, startCancel] = useTransition();
 
   const people = data.people.map((person) => {
     const overlay =
@@ -128,25 +127,14 @@ function AttendanceJournalInner({ data }: { data: JournalData }) {
           {data.cancelReason ? ` — ${data.cancelReason}` : ""}
         </p>
       ) : (
-        <CancelSessionForm
-          pending={cancelPending}
-          reason={reason}
-          onReason={setReason}
-          onSubmit={() => {
-            startCancel(async () => {
-              const result = await cancelClassSession({
-                classId: data.classId,
-                sessionDate: data.sessionDate,
-                reason,
-              });
-              if (result.ok) {
-                toast.push("ok", result.message);
-                router.refresh();
-              } else {
-                toast.push("err", result.error);
-              }
-            });
+        <CancelClassOccurrenceForm
+          classId={data.classId}
+          sessionDate={data.sessionDate}
+          onDone={(message) => {
+            toast.push("ok", message);
+            router.refresh();
           }}
+          onError={(message) => toast.push("err", message)}
         />
       )}
 
@@ -187,7 +175,9 @@ function AttendanceJournalInner({ data }: { data: JournalData }) {
                 </button>
                 <div className="min-w-0 flex-1">
                   <p className="text-cream">
-                    {label}
+                    <CustomerNameLink customerId={person.customerId}>
+                      {label}
+                    </CustomerNameLink>
                     {person.dropIn ? (
                       <span className="ml-2 text-[12px] text-muted">gość</span>
                     ) : null}
@@ -221,65 +211,5 @@ function AttendanceJournalInner({ data }: { data: JournalData }) {
         />
       )}
     </div>
-  );
-}
-
-function CancelSessionForm({
-  pending,
-  reason,
-  onReason,
-  onSubmit,
-}: {
-  pending: boolean;
-  reason: string;
-  onReason: (value: string) => void;
-  onSubmit: () => void;
-}) {
-  const [open, setOpen] = useState(false);
-  if (!open) {
-    return (
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="self-start text-[13px] text-muted hover:text-gold"
-      >
-        Odwołaj te zajęcia
-      </button>
-    );
-  }
-  return (
-    <form
-      className="border border-white/10 bg-black-soft p-3"
-      onSubmit={(event) => {
-        event.preventDefault();
-        onSubmit();
-      }}
-    >
-      <label className="text-[12px] text-muted">
-        Powód odwołania
-        <textarea
-          value={reason}
-          onChange={(event) => onReason(event.target.value)}
-          rows={2}
-          required
-          minLength={3}
-          className="mt-1 min-h-20 w-full border border-white/10 bg-black px-3 py-2 text-[13px] text-cream"
-        />
-      </label>
-      <div className="mt-2 flex flex-wrap gap-2">
-        <Button type="submit" size="sm" disabled={pending}>
-          Odwołaj
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          disabled={pending}
-          onClick={() => setOpen(false)}
-        >
-          Anuluj
-        </Button>
-      </div>
-    </form>
   );
 }

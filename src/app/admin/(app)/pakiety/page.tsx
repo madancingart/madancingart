@@ -53,6 +53,7 @@ export default async function AdminPackagesPage() {
     );
     return {
       id: row.id as string,
+      customerId: (row.customer_id as string | null) ?? null,
       label: row.label as string,
       status: row.status as PackageStatus,
       weddingDate: (row.wedding_date as string | null) ?? null,

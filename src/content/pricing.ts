@@ -16,8 +16,6 @@ export type PricingSection = {
   items: PriceItem[];
 };
 
-export const RESERVATION_FEE_CENTS = 3000;
-
 export const pricing: Record<LocationId, PricingSection[]> = {
   mikolow: [
     {

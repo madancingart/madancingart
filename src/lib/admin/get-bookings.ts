@@ -39,7 +39,7 @@ export type AdminBookingListRow = {
 };
 
 const COLUMNS =
-  "id,kind,first_name,last_name,phone,email,status,payment_status,created_at,location_id,slot_starts_at,slot_ends_at,event_starts_at,event_ends_at,event_title,class_weekday,class_start_time,class_duration_min,class_name,recurring_class_id";
+  "id,kind,first_name,last_name,phone,email,status,payment_status,created_at,location_id,slot_starts_at,slot_ends_at,event_starts_at,event_ends_at,event_title,class_weekday,class_start_time,class_duration_min,class_name,recurring_class_id,customer_id";
 
 type BookingListResult = Promise<{
   data: Record<string, unknown>[] | null;
@@ -78,7 +78,7 @@ function mapRow(row: Record<string, unknown>): AdminBookingListRow {
     classDurationMin: (row.class_duration_min as number | null) ?? null,
     className: (row.class_name as string | null) ?? null,
     recurringClassId: (row.recurring_class_id as string | null) ?? null,
-    customerId: null,
+    customerId: (row.customer_id as string | null) ?? null,
     membership: null,
   };
 }
@@ -170,7 +170,7 @@ async function attachMembership(
     if (row.kind !== "class" || row.status === "cancelled") {
       return row;
     }
-    const customerId = customerByBooking.get(row.id) ?? null;
+    const customerId = customerByBooking.get(row.id) ?? row.customerId;
     const classPackages = packages.filter(
       (pkg) =>
         pkg.customer_id === customerId &&

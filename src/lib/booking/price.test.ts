@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { RESERVATION_FEE_CENTS } from "@/content/pricing";
 import { fullAmountCents, quoteBookingCharge } from "@/lib/booking/price";
 
 describe("fullAmountCents", () => {
@@ -68,24 +67,26 @@ describe("fullAmountCents", () => {
 });
 
 describe("quoteBookingCharge", () => {
-  it("uses the reservation fee from pricing.ts", () => {
-    const quote = quoteBookingCharge("reservation", {
-      kind: "event",
+  it("quotes the full class amount", () => {
+    const quote = quoteBookingCharge({
+      kind: "class",
       locationId: "mikolow",
-      durationMin: 90,
-      title: "Warsztaty",
+      classSlug: "latino-solo",
+      durationMin: 50,
+      title: "Latino Solo",
     });
-    expect(quote?.amountCents).toBe(RESERVATION_FEE_CENTS);
+    expect(quote?.amountCents).toBe(12_000);
+    expect(quote?.productName).toBe("Latino Solo");
   });
 
-  it("returns null for onsite and for unpaid event full checkout", () => {
-    const context = {
-      kind: "event" as const,
-      locationId: "mikolow" as const,
-      durationMin: 90,
-      title: "Warsztaty",
-    };
-    expect(quoteBookingCharge("onsite", context)).toBeNull();
-    expect(quoteBookingCharge("full", context)).toBeNull();
+  it("returns null when there is no cennik amount", () => {
+    expect(
+      quoteBookingCharge({
+        kind: "event",
+        locationId: "mikolow",
+        durationMin: 90,
+        title: "Warsztaty",
+      }),
+    ).toBeNull();
   });
 });

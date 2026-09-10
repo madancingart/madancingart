@@ -3,6 +3,8 @@ import Link from "next/link";
 import { requireAdmin } from "@/lib/admin/require-admin";
 import { getAdminDashboard } from "@/lib/admin/dashboard";
 import type { LocationId } from "@/content/site";
+import { telHref } from "@/lib/contact";
+import { CustomerNameLink } from "@/components/admin/CustomerNameLink";
 
 type PageProps = {
   searchParams: Promise<{ lokalizacja?: string }>;
@@ -66,6 +68,48 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
         </Link>
       </div>
 
+      <section className="border border-[#E8A0A0]/40 bg-black-soft p-4">
+        <h2 className="flex items-baseline justify-between gap-2 text-[15px] font-semibold text-cream">
+          Do potwierdzenia
+          <span className="text-[#E8A0A0]">{data.awaitingConfirmation.length}</span>
+        </h2>
+        {data.awaitingConfirmation.length === 0 ? (
+          <p className="mt-3 text-[13px] text-muted">
+            Brak rezerwacji na najbliższe 24 godziny bez potwierdzenia.
+          </p>
+        ) : (
+          <ul className="mt-3 divide-y divide-white/10">
+            {data.awaitingConfirmation.map((item) => (
+              <li
+                key={item.id}
+                className="flex flex-wrap items-baseline justify-between gap-2 py-2"
+              >
+                <div>
+                  <p className="text-cream">
+                    <CustomerNameLink customerId={item.customerId}>
+                      {item.name}
+                    </CustomerNameLink>
+                  </p>
+                  <p className="text-[12px] text-muted">
+                    {item.locationLabel} · {item.when}
+                  </p>
+                </div>
+                {item.phone ? (
+                  <a
+                    href={telHref(item.phone)}
+                    className="shrink-0 text-[13px] text-gold hover:text-gold-light"
+                  >
+                    {item.phone}
+                  </a>
+                ) : (
+                  <span className="text-[13px] text-muted">brak telefonu</span>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
       <section className="grid gap-4 lg:grid-cols-2">
         <article className="border border-white/10 bg-black-soft p-4">
           <h1 className="text-[15px] font-semibold text-cream">
@@ -105,15 +149,14 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
             <ul className="mt-3 divide-y divide-white/10">
               {data.pending.map((item) => (
                 <li key={item.id} className="py-2">
-                  <Link
-                    href="/admin/zapisy"
-                    className="flex items-baseline justify-between gap-3 hover:text-gold"
-                  >
-                    <span className="text-cream">{item.name}</span>
+                  <div className="flex items-baseline justify-between gap-3">
+                    <CustomerNameLink customerId={item.customerId}>
+                      {item.name}
+                    </CustomerNameLink>
                     <span className="text-[12px] text-muted">
                       {kindLabel(item.kind)}
                     </span>
-                  </Link>
+                  </div>
                 </li>
               ))}
             </ul>

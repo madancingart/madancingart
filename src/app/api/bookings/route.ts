@@ -1,10 +1,6 @@
-import { after } from "next/server";
 import { revalidatePath } from "next/cache";
 import { createBookingCheckout } from "@/lib/booking/checkout";
 import { mapBookingError } from "@/lib/booking/errors";
-import { releaseUnpaidBooking } from "@/lib/booking/release";
-import { resolveBookingTerm } from "@/lib/booking/term";
-import { sendBookingEmails } from "@/lib/email";
 import { allowBookingAttempt, clientIp } from "@/lib/rate-limit";
 import { hasStripeSecret } from "@/lib/stripe";
 import { createClient } from "@/lib/supabase/server";
@@ -86,7 +82,17 @@ export async function POST(request: Request) {
     );
   }
 
-  const paymentOption = coercePaymentOption(data.paymentOption);
+  const paymentOption = coercePaymentOption();
+  if (!hasStripeSecret()) {
+    return Response.json(
+      {
+        ok: false,
+        error: "Płatności online są chwilowo niedostępne.",
+      },
+      { status: 503 },
+    );
+  }
+
   const supabase = await createClient();
 
   if (data.kind === "class") {
@@ -144,65 +150,21 @@ export async function POST(request: Request) {
 
   revalidatePath("/grafik");
 
-  if (paymentOption !== "onsite") {
-    if (!hasStripeSecret()) {
-      await releaseUnpaidBooking(bookingId);
-      return Response.json(
-        {
-          ok: false,
-          error: "Płatności online są chwilowo niedostępne.",
-        },
-        { status: 503 },
-      );
-    }
-
-    const checkout = await createBookingCheckout({
-      bookingId,
-      input: { ...data, paymentOption },
-    });
-
-    if ("error" in checkout) {
-      return Response.json(
-        { ok: false, error: checkout.error },
-        { status: checkout.status },
-      );
-    }
-
-    return Response.json({
-      ok: true,
-      bookingId,
-      checkoutUrl: checkout.url,
-    });
-  }
-
-  const term = await resolveBookingTerm(supabase, {
-    kind: data.kind,
-    targetId: data.targetId,
-    startsAt: data.startsAt,
-    endsAt: data.endsAt,
-    fallbackTitle:
-      data.kind === "slot" ? "Lekcja indywidualna" : data.title,
-    fallbackLocationId: data.locationId,
+  const checkout = await createBookingCheckout({
+    bookingId,
+    input: { ...data, paymentOption },
   });
 
-  after(() =>
-    sendBookingEmails({
-      kind: data.kind,
-      firstName: data.firstName,
-      lastName: data.lastName,
-      phone: data.phone,
-      email: data.email,
-      message: data.message,
-      danceType: data.kind === "slot" ? (data.danceType ?? null) : null,
-      customerKind: data.customerKind,
-      partnerFirstName,
-      partnerLastName,
-      guardianName,
-      term,
-    }).catch((reason: unknown) => {
-      console.error("Wysyłka maili po zapisie nie powiodła się.", reason);
-    }),
-  );
+  if ("error" in checkout) {
+    return Response.json(
+      { ok: false, error: checkout.error },
+      { status: checkout.status },
+    );
+  }
 
-  return Response.json({ ok: true, bookingId });
+  return Response.json({
+    ok: true,
+    bookingId,
+    checkoutUrl: checkout.url,
+  });
 }

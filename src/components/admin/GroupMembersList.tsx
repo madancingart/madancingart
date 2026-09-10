@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { MembershipBadge } from "@/components/admin/MembershipBadge";
 import { RecordPaymentForm } from "@/components/admin/RecordPaymentForm";
+import { CustomerNameLink } from "@/components/admin/CustomerNameLink";
 import type { AdminBooking, AdminGroupMember } from "@/lib/admin/calendar-types";
 import { telHref } from "@/lib/contact";
 import { formatDatePl } from "@/lib/datetime";
@@ -164,19 +165,35 @@ function MemberIdentity({ member }: { member: AdminGroupMember }) {
       {isPair ? (
         <>
           <p className="text-[12px] text-muted">Pierwsza osoba</p>
-          <p className="text-cream">{firstLabel}</p>
+          <p className="text-cream">
+            <CustomerNameLink customerId={member.customerId}>
+              {firstLabel}
+            </CustomerNameLink>
+          </p>
           <p className="mt-1 text-[12px] text-muted">Druga osoba</p>
-          <p className="text-cream">{partnerLabel || "—"}</p>
+          <p className="text-cream">
+            <CustomerNameLink customerId={member.customerId}>
+              {partnerLabel || "—"}
+            </CustomerNameLink>
+          </p>
         </>
       ) : isChild ? (
         <>
           <p className="text-[12px] text-muted">Dziecko</p>
-          <p className="text-cream">{firstLabel}</p>
+          <p className="text-cream">
+            <CustomerNameLink customerId={member.customerId}>
+              {firstLabel}
+            </CustomerNameLink>
+          </p>
           <p className="mt-1 text-[12px] text-muted">Rodzic / opiekun</p>
           <p className="text-cream">{member.guardianName || "—"}</p>
         </>
       ) : (
-        <p className="text-cream">{firstLabel}</p>
+        <p className="text-cream">
+          <CustomerNameLink customerId={member.customerId}>
+            {firstLabel}
+          </CustomerNameLink>
+        </p>
       )}
       <p className="mt-1 text-[13px]">
         {phone ? (

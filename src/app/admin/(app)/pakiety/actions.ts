@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/admin/require-admin";
 import { activatePackage } from "@/lib/packages/activate";
 import { site } from "@/content/site";
+import { warsawWeekBoundsFromIso } from "@/lib/datetime";
 import { z } from "zod";
 
 export type PackageActionResult =
@@ -18,6 +19,7 @@ function revalidatePackages() {
   revalidatePath("/admin/pakiety");
   revalidatePath("/admin/kalendarz");
   revalidatePath("/admin/zapisy");
+  revalidatePath("/admin/klienci", "layout");
   revalidatePath("/grafik");
 }
 
@@ -39,6 +41,7 @@ const attachSchema = z.object({
 const openSlotsSchema = z.object({
   locationId: z.enum(["mikolow", "lubliniec"]).optional(),
   trainerId: z.string().trim().max(64).optional(),
+  weekOf: z.string().min(1).optional(),
 });
 
 export type OpenSlotOption = {
@@ -96,6 +99,13 @@ export async function listOpenSlots(
     .gt("starts_at", new Date().toISOString())
     .order("starts_at", { ascending: true })
     .limit(80);
+
+  if (parsed.data.weekOf) {
+    const bounds = warsawWeekBoundsFromIso(parsed.data.weekOf);
+    query = query
+      .gte("starts_at", bounds.start.toISOString())
+      .lte("starts_at", bounds.end.toISOString());
+  }
 
   if (parsed.data.locationId) {
     query = query.eq("location_id", parsed.data.locationId);

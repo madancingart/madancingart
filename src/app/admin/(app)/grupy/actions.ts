@@ -46,6 +46,7 @@ function revalidateGroup(classId: string) {
   revalidatePath("/admin/zapisy");
   revalidatePath("/admin/pakiety");
   revalidatePath("/admin/ewidencja");
+  revalidatePath("/admin/klienci", "layout");
   revalidatePath(`/admin/grupy/${classId}`);
 }
 

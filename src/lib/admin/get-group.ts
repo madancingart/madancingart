@@ -92,6 +92,7 @@ export async function getAdminGroup(
       packageId: null,
       lessonNo: null,
       weddingPackage: null,
+      confirmedAt: null,
     };
   });
 

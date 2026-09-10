@@ -107,6 +107,23 @@ function calendarDateUtc(year: number, month: number, day: number): Date {
   return new Date(Date.UTC(year, month - 1, day));
 }
 
+export function warsawWeekBoundsFromIso(
+  iso: string,
+  weekOffset = 0,
+): { start: TZDate; end: TZDate } {
+  const days = weekDaysFromIso(iso, weekOffset);
+  const startDay = days[0];
+  const endDay = days[6];
+  if (!startDay || !endDay) {
+    const now = nowInWarsaw();
+    return boundsOfWarsawDay(now);
+  }
+  return {
+    start: boundsOfWarsawDay(startDay).start,
+    end: boundsOfWarsawDay(endDay).end,
+  };
+}
+
 /** Monday–Sunday of the week containing `iso`, shifted by `weekOffset` weeks. */
 export function weekDaysFromIso(iso: string, weekOffset: number): TZDate[] {
   const { year, month, day } = warsawYmd(new Date(iso));
