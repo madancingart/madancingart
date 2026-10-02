@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
+import { ContractConsent } from "@/components/legal/ContractConsent";
 import { Button } from "@/components/ui/Button";
 import { formatPlnFromCents } from "@/lib/money";
 import { isPaymentsEnabled } from "@/lib/validation";
@@ -52,6 +53,7 @@ export function PackagePurchaseForm({
       weddingDate: "",
       songs: [{ title: "", artist: "" }],
       consentRodo: false,
+      consentContract: false,
       website: "",
     },
   });
@@ -300,6 +302,12 @@ export function PackagePurchaseForm({
             : "Po wysłaniu przejdziesz do płatności online."
           : "Płatność na miejscu — po wpłacie aktywujemy pakiet i umówimy pierwszą lekcję."}
       </p>
+
+      <ContractConsent
+        tone="muted"
+        {...register("consentContract")}
+        error={errors.consentContract?.message}
+      />
 
       <div>
         <label className="flex items-start gap-3 text-sm text-muted">

@@ -18,6 +18,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "/kontakt",
     "/polityka-prywatnosci",
     "/regulamin",
+    "/regulamin-zajec",
+    "/umowa",
     "/pierwszy-taniec/pakiety",
   ];
 

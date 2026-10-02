@@ -15,4 +15,6 @@ export const enrollLink = {
 export const legalLinks = [
   { href: "/polityka-prywatnosci", label: "Polityka prywatności" },
   { href: "/regulamin", label: "Regulamin" },
+  { href: "/regulamin-zajec", label: "Regulamin zajęć" },
+  { href: "/umowa", label: "Umowa" },
 ] as const;

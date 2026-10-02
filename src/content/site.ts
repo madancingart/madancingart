@@ -18,6 +18,8 @@ export type SiteLegal = {
   regon: string;
   krs: string;
   court: string;
+  bank: string;
+  account: string;
 };
 
 export type Site = {
@@ -60,5 +62,7 @@ export const site = {
     krs: "0001125382",
     court:
       "Sąd Rejonowy Katowice-Wschód w Katowicach, VIII Wydział Gospodarczy Krajowego Rejestru Sądowego",
+    bank: "ING Bank Śląski",
+    account: "32 1050 1070 1000 0090 8414 4014",
   },
 } as const satisfies Site;

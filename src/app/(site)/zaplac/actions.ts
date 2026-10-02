@@ -9,7 +9,13 @@ import { createClient } from "@/lib/supabase/server";
 
 export type CheckoutStart = { url: string } | { error: string };
 
-export async function startTokenCheckout(token: string): Promise<CheckoutStart> {
+export async function startTokenCheckout(
+  token: string,
+  accepted: boolean,
+): Promise<CheckoutStart> {
+  if (!accepted) {
+    return { error: "Zaakceptuj umowę i regulamin zajęć." };
+  }
   const parsed = z.uuid().safeParse(token);
   if (!parsed.success) {
     return { error: "Nie znaleziono tej płatności." };
@@ -32,7 +38,13 @@ export async function startTokenCheckout(token: string): Promise<CheckoutStart> 
   }
 }
 
-export async function startOwnedCheckout(chargeId: string): Promise<CheckoutStart> {
+export async function startOwnedCheckout(
+  chargeId: string,
+  accepted: boolean,
+): Promise<CheckoutStart> {
+  if (!accepted) {
+    return { error: "Zaakceptuj umowę i regulamin zajęć." };
+  }
   const parsed = z.uuid().safeParse(chargeId);
   if (!parsed.success) {
     return { error: "Nie znaleziono tej należności." };

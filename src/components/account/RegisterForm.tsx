@@ -265,6 +265,14 @@ export function RegisterForm({
           <Link href="/regulamin" className="text-gold hover:text-gold-light">
             regulamin
           </Link>
+          ,{" "}
+          <Link href="/umowa" className="text-gold hover:text-gold-light">
+            umowę
+          </Link>{" "}
+          i{" "}
+          <Link href="/regulamin-zajec" className="text-gold hover:text-gold-light">
+            regulamin zajęć
+          </Link>
           .
         </span>
       </label>

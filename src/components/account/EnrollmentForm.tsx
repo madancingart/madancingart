@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { previewSignup } from "@/app/(site)/konto/zapisy/actions";
 import { AccountField, accountFieldClass } from "@/components/account/fields";
+import { ContractConsent } from "@/components/legal/ContractConsent";
 import { Button } from "@/components/ui/Button";
 import type { SignupGroup } from "@/lib/account/signup-catalog";
 import { participantRpcMessage } from "@/lib/account/rpc-errors";
@@ -73,6 +74,7 @@ export function EnrollmentForm({
   );
   const [adding, setAdding] = useState<"child" | "pair" | null>(null);
   const [pending, setPending] = useState(false);
+  const [accepted, setAccepted] = useState(false);
   const [error, setError] = useState("");
   const [done, setDone] = useState("");
 
@@ -142,6 +144,10 @@ export function EnrollmentForm({
     if (!selected || !customerId || blocked) {
       return;
     }
+    if (!accepted) {
+      setError("Zaakceptuj umowę i regulamin zajęć.");
+      return;
+    }
     setPending(true);
     setError("");
     try {
@@ -152,6 +158,7 @@ export function EnrollmentForm({
           customerId,
           classId: selected.id,
           plan: preview?.kind === "offer" && preview.billing === "monthly" ? plan : "period",
+          acceptContract: true,
         }),
       });
       const payload = (await response.json()) as {
@@ -338,6 +345,13 @@ export function EnrollmentForm({
         ) : null}
         {preview?.kind !== "covered" ? (
           <>
+            <ContractConsent
+              checked={accepted}
+              onChange={(event) => {
+                setAccepted(event.target.checked);
+                setError("");
+              }}
+            />
             <Button type="button" className="min-h-11 w-full" disabled={blocked} onClick={() => void submit()}>
               {pending
                 ? "Chwila…"

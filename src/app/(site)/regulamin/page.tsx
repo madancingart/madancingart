@@ -75,79 +75,24 @@ export default function TermsPage() {
         </p>
       </LegalSection>
 
-      <LegalSection title="4. Zajęcia grupowe">
+      <LegalSection title="4. Zajęcia, opłaty i rezygnacja">
         <p>
-          Opłata miesięczna obejmuje zajęcia z grafiku w danym miesiącu. Pełny
-          miesiąc rozliczamy z góry: informację o kwocie wysyłamy około 20. dnia
-          poprzedniego miesiąca, a termin płatności mija 5. dnia miesiąca, którego
-          dotyczy opłata.
-        </p>
-        <p>
-          Pierwsza wpłata po zapisie jest naliczana od razu i płatna w ciągu 4
-          dni. Jeśli w bieżącym miesiącu zostały mniej niż dwa zajęcia, pierwsza
-          kwota obejmuje resztę tego miesiąca i kolejny pełny miesiąc. Niepełny
-          miesiąc liczymy proporcjonalnie do liczby zajęć, które są w grafiku.
-        </p>
-        <p>
-          Jeśli na stronie jest przedpłata za kilka miesięcy, jedna wpłata pokrywa
-          ten okres. Za miesiące objęte już potwierdzoną przerwą albo rezygnacją
-          złożoną w terminie z punktu 7 zwracamy nadpłatę.
-        </p>
-        <p>
-          Nieobecność uczestnika nie obniża opłaty za zajęcia, które się odbyły.
-          Zajęcia odwołane przez szkołę odpadają z rozliczenia tego miesiąca.
+          Zasady zajęć, opłat, karnetu, nieobecności i rezygnacji są w{" "}
+          <Link href="/regulamin-zajec" className="text-gold hover:text-gold-light">
+            regulaminie zajęć
+          </Link>{" "}
+          i w{" "}
+          <Link href="/umowa" className="text-gold hover:text-gold-light">
+            umowie
+          </Link>
+          . Przy zapisie i przy płatności akceptujesz oba dokumenty. Opłata
+          miesięczna albo karnet, termin do 10. dnia miesiąca, przelew na konto
+          szkoły. Tej samej kwoty możesz dopłacić kartą na stronie albo gotówką
+          na sali.
         </p>
       </LegalSection>
 
-      <LegalSection title="5. Karnet">
-        <p>
-          Tam, gdzie cennik przewiduje karnet, obejmuje on 4 wejścia na wskazane
-          zajęcia. Wejście schodzi, gdy zajęcia się odbyły i uczestnik był na nie
-          zapisany. Gdy zostaje ostatnie wejście, dostaniesz informację o kolejnym
-          karnecie. Nowy karnet zaczyna się po opłaceniu.
-        </p>
-      </LegalSection>
-
-      <LegalSection title="6. Lekcje indywidualne i pierwszy taniec">
-        <p>
-          Lekcja i pakiet godzin (także pierwszy taniec) są płatne z góry, według
-          cennika. Termin umawiasz ze szkołą. Godzinę przekładasz, pisząc albo
-          dzwoniąc najpóźniej dzień przed lekcją. Późniejsze odwołanie albo
-          nieobecność bez wiadomości oznacza, że godzina jest wykorzystana.
-        </p>
-        <p>
-          Niewykorzystane godziny pakietu nie przepadają tylko dlatego, że minął
-          czas — umawiasz je dalej ze szkołą. Jeśli rezygnujesz z reszty pakietu,
-          rozliczamy godziny, które zostały, po cenie pojedynczej lekcji z cennika
-          i zwracamy różnicę wobec wpłaconej kwoty.
-        </p>
-      </LegalSection>
-
-      <LegalSection title="7. Płatności, przerwa, rezygnacja">
-        <p>
-          Płacisz online (karta, przez Stripe), gotówką na sali albo przelewem.
-          Przy płatności online operatorem płatności jest Stripe. Szkoła nie
-          zapisuje pełnego numeru karty.
-        </p>
-        <p>
-          Po terminie przypomnimy o wpłacie. Jeśli coś się zmieniło i nie chodzisz
-          na zajęcia, odpisz — zamkniemy zapis i przestaniemy przypominać.
-        </p>
-        <p>
-          Przerwę (wyjazd, kontuzja, inna przerwa) zgłaszasz mailem albo
-          telefonicznie. Obowiązuje od dat, które szkoła potwierdzi. Za
-          potwierdzoną przerwę nie wystawiamy opłaty miesięcznej.
-        </p>
-        <p>
-          Rezygnację ze stałego zapisu zgłaszasz mailem albo telefonicznie. Jeśli
-          zrobisz to do 20. dnia miesiąca, zapis kończy się z końcem tego miesiąca
-          i kolejnego już nie rozliczamy. Zgłoszenie po 20. dniu zamyka zapis z
-          końcem następnego miesiąca — ten następny miesiąc zostaje do opłacenia,
-          jeśli zajęcia są w grafiku.
-        </p>
-      </LegalSection>
-
-      <LegalSection title="8. Na sali">
+      <LegalSection title="5. Na sali">
         <p>
           Na zajęcia przychodzisz w stroju i obuwiu do tańca, na czas. O kontuzji
           albo przeciwwskazaniu do wysiłku mówisz trenerowi przed zajęciami.
@@ -160,12 +105,13 @@ export default function TermsPage() {
           na koncie ma być numerem, pod którym da się Was złapać.
         </p>
         <p>
-          Zdjęcia i nagrania z zajęć publikujemy tylko za zgodą osoby dorosłej
-          albo rodzica dziecka. Zgoda nie jest warunkiem udziału w zajęciach.
+          Zdjęcia i nagrania do materiałów szkoły publikujemy tylko za osobną
+          zgodą osoby dorosłej albo rodzica dziecka. Ta zgoda nie jest warunkiem
+          udziału w zajęciach.
         </p>
       </LegalSection>
 
-      <LegalSection title="9. Odstąpienie od umowy zawartej na odległość">
+      <LegalSection title="6. Odstąpienie od umowy zawartej na odległość">
         <p>
           Umowę zawartą przez stronę albo konto możesz odstąpić w ciągu 14 dni
           bez podania przyczyny. Wystarczy wiadomość na {site.email}. Termin
@@ -182,7 +128,7 @@ export default function TermsPage() {
         </p>
       </LegalSection>
 
-      <LegalSection title="10. Reklamacje">
+      <LegalSection title="7. Reklamacje">
         <p>
           Reklamację wyślij na {site.email} albo zgłoś telefonicznie. Napisz,
           czego dotyczy i czego oczekujesz. Odpowiadamy w ciągu 14 dni. Brak
@@ -190,7 +136,7 @@ export default function TermsPage() {
         </p>
       </LegalSection>
 
-      <LegalSection title="11. Treści strony i zmiany">
+      <LegalSection title="8. Treści strony i zmiany">
         <p>
           Teksty, zdjęcia i układ strony należą do szkoły albo są używane za
           zgodą. Możesz z nich korzystać na własny użytek. Nie kopiujesz ich na

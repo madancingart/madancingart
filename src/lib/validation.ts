@@ -100,6 +100,9 @@ const bookingSharedFields = {
   consentRodo: z.boolean().refine((value) => value === true, {
     error: "Zgoda na przetwarzanie danych jest wymagana.",
   }),
+  consentContract: z.boolean().refine((value) => value === true, {
+    error: "Zaakceptuj umowę i regulamin zajęć.",
+  }),
   website: z.string().optional(),
 };
 
@@ -263,6 +266,9 @@ export const packagePurchaseSchema = z
       .max(5, "Możesz podać maksymalnie 5 utworów."),
     consentRodo: z.boolean().refine((value) => value === true, {
       error: "Zgoda na przetwarzanie danych jest wymagana.",
+    }),
+    consentContract: z.boolean().refine((value) => value === true, {
+      error: "Zaakceptuj umowę i regulamin zajęć.",
     }),
     website: z.string().optional(),
   })

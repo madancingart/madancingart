@@ -5,6 +5,9 @@ const bodySchema = z.object({
   customerId: z.uuid(),
   classId: z.uuid(),
   plan: z.enum(["period", "prepaid"]),
+  acceptContract: z.boolean().refine((value) => value === true, {
+    error: "Zaakceptuj umowę i regulamin zajęć.",
+  }),
 });
 
 export async function POST(request: Request) {
@@ -21,7 +24,7 @@ export async function POST(request: Request) {
   const parsed = bodySchema.safeParse(json);
   if (!parsed.success) {
     return Response.json(
-      { ok: false, error: "Sprawdź uczestnika i grupę." },
+      { ok: false, error: parsed.error.issues[0]?.message ?? "Sprawdź uczestnika i grupę." },
       { status: 400 },
     );
   }

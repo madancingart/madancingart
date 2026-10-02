@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { useForm } from "react-hook-form";
+import { ContractConsent } from "@/components/legal/ContractConsent";
 import { Button } from "@/components/ui/Button";
 import { site } from "@/content/site";
 import { createClient } from "@/lib/supabase/client";
@@ -72,6 +73,7 @@ export function BookingModal({ target, onClose }: BookingModalProps) {
       danceType: "",
       paymentOption: "full",
       consentRodo: false,
+      consentContract: false,
       website: "",
     } as BookingFormInput,
   });
@@ -517,6 +519,13 @@ export function BookingModal({ target, onClose }: BookingModalProps) {
             </Field>
 
             <input type="hidden" value="full" {...register("paymentOption")} />
+
+            <ContractConsent
+              tone="muted"
+              aria-invalid={Boolean(errors.consentContract)}
+              {...register("consentContract")}
+              error={errors.consentContract?.message}
+            />
 
             <div>
               <label className="flex items-start gap-3 text-sm text-muted">
