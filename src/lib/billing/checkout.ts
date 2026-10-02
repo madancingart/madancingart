@@ -69,7 +69,6 @@ export async function createCheckout(chargeIds: readonly string[]): Promise<{ ur
     success_url: `${origin}/konto/platnosci?status=ok`,
     cancel_url: `${origin}/konto?platnosc=anulowana`,
     metadata: { charge_ids: ids.join(",") },
-    payment_method_types: ["blik", "card", "p24"],
     line_items: selected.map((charge) => ({
       quantity: 1,
       price_data: {
