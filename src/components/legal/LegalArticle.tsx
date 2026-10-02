@@ -40,7 +40,7 @@ export function LegalIdentity() {
       <a href={telHref(site.phone)} className="text-gold hover:text-gold-light">
         {site.phone}
       </a>
-      . E-mail:{" "}
+      {". E-mail: "}
       <a href={`mailto:${site.email}`} className="text-gold hover:text-gold-light">
         {site.email}
       </a>

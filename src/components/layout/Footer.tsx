@@ -86,7 +86,7 @@ export function Footer() {
 
         <div className="flex flex-col gap-3 text-sm text-muted sm:flex-row sm:items-center sm:justify-between">
           <p>
-            © {year} {site.name}
+            © {year} {site.legal.name}
           </p>
           <div className="flex flex-wrap gap-x-6 gap-y-2">
             {legalLinks.map((item) => (
