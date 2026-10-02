@@ -1,12 +1,11 @@
 import type {
   BookingStatus,
   PackageKind,
-  PackagePaymentMethod,
   PackageStatus,
   PaymentStatus,
   SlotStatus,
 } from "@/lib/types";
-import type { MembershipStatus } from "@/lib/membership-status";
+import type { BillingStatus } from "@/lib/billing/status";
 import type { LocationId } from "@/content/site";
 
 export type AdminBookingPackage = {
@@ -57,29 +56,16 @@ export type AdminClass = {
   taken: number;
   capacity: number;
   trainerId: string | null;
+  priceItemId: string | null;
   bookings: AdminBooking[];
   members: AdminGroupMember[];
   cancelledDates: string[];
 };
 
-export type AdminMemberPackage = {
-  id: string;
-  kind: PackageKind;
-  label: string;
-  status: PackageStatus;
-  validFrom: string | null;
-  validUntil: string | null;
-  totalLessons: number | null;
-  usedEntries: number;
-  paidAt: string | null;
-  paymentMethod: PackagePaymentMethod | null;
-  priceCents: number;
-};
-
 export type AdminGroupMember = {
   key: string;
-  customerId: string | null;
-  bookingIds: string[];
+  enrollmentId: string;
+  customerId: string;
   firstName: string;
   lastName: string | null;
   phone: string | null;
@@ -89,9 +75,9 @@ export type AdminGroupMember = {
   partnerLastName: string | null;
   guardianName: string | null;
   guardianPhone: string | null;
-  bookingStatus: BookingStatus;
-  membership: MembershipStatus;
-  packages: AdminMemberPackage[];
+  enrollmentStatus: "active" | "paused";
+  paidUntil: string | null;
+  billing: BillingStatus;
 };
 
 export type AdminGroupDetail = {
@@ -107,6 +93,7 @@ export type AdminGroupDetail = {
   taken: number;
   capacity: number;
   trainerId: string | null;
+  priceItemId: string | null;
   bookings: AdminBooking[];
   members: AdminGroupMember[];
 };

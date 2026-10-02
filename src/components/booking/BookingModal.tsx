@@ -8,6 +8,7 @@ import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/Button";
 import { site } from "@/content/site";
+import { createClient } from "@/lib/supabase/client";
 import { formatBookingWhen, toWarsaw } from "@/lib/datetime";
 import type { BookingTarget } from "@/lib/schedule/types";
 import type { CustomerKind } from "@/lib/types";
@@ -35,6 +36,7 @@ export function BookingModal({ target, onClose }: BookingModalProps) {
   const router = useRouter();
   const [view, setView] = useState<View>("form");
   const [errorMessage, setErrorMessage] = useState("");
+  const [accountHref, setAccountHref] = useState<string | null>(null);
   const [successEmail, setSuccessEmail] = useState("");
   const initialCustomerKind = formCustomerKindForTarget({
     bookingKind: target.kind,
@@ -85,6 +87,45 @@ export function BookingModal({ target, onClose }: BookingModalProps) {
     guardianFirstName?: { message?: string };
     guardianLastName?: { message?: string };
   };
+
+  useEffect(() => {
+    if (process.env.NEXT_PUBLIC_ACCOUNTS_ENABLED !== "true") {
+      return;
+    }
+    if (target.kind === "class") {
+      return;
+    }
+    let active = true;
+    const supabase = createClient();
+    void (async () => {
+      const { data } = await supabase.auth.getUser();
+      if (!active || !data.user) {
+        return;
+      }
+      if (data.user.email) {
+        setValue("email", data.user.email);
+      }
+      const profile = await supabase
+        .from("account_profiles")
+        .select("first_name, last_name, phone")
+        .eq("user_id", data.user.id)
+        .maybeSingle();
+      if (!active || !profile.data) {
+        return;
+      }
+      const row = profile.data as {
+        first_name: string;
+        last_name: string;
+        phone: string;
+      };
+      setValue("firstName", row.first_name);
+      setValue("lastName", row.last_name);
+      setValue("phone", row.phone);
+    })();
+    return () => {
+      active = false;
+    };
+  }, [setValue, target.kind]);
 
   useEffect(() => {
     if (target.kind !== "slot") {
@@ -157,9 +198,11 @@ export function BookingModal({ target, onClose }: BookingModalProps) {
         ok?: boolean;
         error?: string;
         checkoutUrl?: string;
+        accountHref?: string;
       };
 
       if (!response.ok || !payload.ok) {
+        setAccountHref(payload.accountHref ?? null);
         setErrorMessage(
           payload.error ?? "Nie udało się zapisać. Spróbuj ponownie.",
         );
@@ -253,7 +296,12 @@ export function BookingModal({ target, onClose }: BookingModalProps) {
         {view === "error" ? (
           <div className="mt-8">
             <p className="text-[#E8A0A0]" role="alert">
-              {errorMessage}
+              {errorMessage}{" "}
+              {accountHref ? (
+                <Link href={accountHref} className="text-gold hover:text-gold-light">
+                  Załóż konto
+                </Link>
+              ) : null}
             </p>
             <Button
               className="mt-6 min-h-11 w-full"

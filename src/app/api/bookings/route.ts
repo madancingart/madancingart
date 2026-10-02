@@ -1,44 +1,15 @@
 import { revalidatePath } from "next/cache";
+import { classSignupHref } from "@/lib/account/redirect";
 import { createBookingCheckout } from "@/lib/booking/checkout";
 import { mapBookingError } from "@/lib/booking/errors";
 import { allowBookingAttempt, clientIp } from "@/lib/rate-limit";
 import { hasStripeSecret } from "@/lib/stripe";
 import { createClient } from "@/lib/supabase/server";
-import type { CustomerKind } from "@/lib/types";
 import {
   bookingApiSchema,
   coercePaymentOption,
-  customerKindFromClass,
   guardianDisplayName,
 } from "@/lib/validation";
-
-type ClassTypeEmbed = {
-  slug: string;
-  is_pair: boolean;
-};
-
-async function expectedClassCustomerKind(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  classId: string,
-): Promise<CustomerKind | null> {
-  const { data, error } = await supabase
-    .from("recurring_classes")
-    .select("class_types ( slug, is_pair )")
-    .eq("id", classId)
-    .maybeSingle();
-
-  if (error || !data) {
-    return null;
-  }
-
-  const raw = (data as { class_types: ClassTypeEmbed | ClassTypeEmbed[] | null })
-    .class_types;
-  const type = Array.isArray(raw) ? raw[0] : raw;
-  if (!type) {
-    return null;
-  }
-  return customerKindFromClass({ slug: type.slug, isPair: type.is_pair });
-}
 
 export async function POST(request: Request) {
   let json: unknown;
@@ -82,6 +53,18 @@ export async function POST(request: Request) {
     );
   }
 
+  if (data.kind === "class") {
+    const mapped = mapBookingError("account_required");
+    return Response.json(
+      {
+        ok: false,
+        error: mapped.message,
+        accountHref: classSignupHref(data.targetId, false),
+      },
+      { status: mapped.status },
+    );
+  }
+
   const paymentOption = coercePaymentOption();
   if (!hasStripeSecret()) {
     return Response.json(
@@ -94,16 +77,6 @@ export async function POST(request: Request) {
   }
 
   const supabase = await createClient();
-
-  if (data.kind === "class") {
-    const expected = await expectedClassCustomerKind(supabase, data.targetId);
-    if (!expected || expected !== data.customerKind) {
-      return Response.json(
-        { ok: false, error: "Sprawdź dane osób zapisanych na ten typ zajęć." },
-        { status: 400 },
-      );
-    }
-  }
 
   const partnerFirstName =
     data.customerKind === "pair" ? data.partnerFirstName : null;

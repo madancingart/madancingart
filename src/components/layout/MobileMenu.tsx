@@ -5,13 +5,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, type RefObject } from "react";
 import { createPortal } from "react-dom";
+import { AccountEntryLink } from "@/components/account/AccountEntryLink";
 import { Button } from "@/components/ui/Button";
 import { Container } from "@/components/ui/Container";
 import { enrollLink, navLinks } from "@/content/navigation";
 import { site } from "@/content/site";
 import { telHref } from "@/lib/contact";
-
-const accountsEnabled = process.env.NEXT_PUBLIC_ACCOUNTS_ENABLED === "true";
 
 export const navIconButtonClass =
   "inline-flex appearance-none items-center justify-center border-0 bg-transparent p-2 text-cream shadow-none";
@@ -212,15 +211,10 @@ export function MobileMenu({
         >
           {site.phone}
         </a>
-        {accountsEnabled ? (
-          <Link
-            href="/konto/logowanie"
-            className="font-sans text-xl text-cream transition-colors duration-300 hover:text-gold"
-            onClick={(event) => handleLinkClick(event, "/konto/logowanie")}
-          >
-            Moje konto
-          </Link>
-        ) : null}
+        <AccountEntryLink
+          className="font-sans text-xl text-cream transition-colors duration-300 hover:text-gold"
+          onClick={(event, href) => handleLinkClick(event, href)}
+        />
         <Button
           href={enrollLink.href}
           size="lg"

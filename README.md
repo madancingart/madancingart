@@ -30,6 +30,8 @@ Skopiuj `.env.local.example` do `.env.local` i uzupełnij wartości.
 | `STRIPE_SECRET_KEY` | [Stripe](https://dashboard.stripe.com) → Developers → API keys (tylko serwer). Lokalnie: `stripe sandbox create` albo klucz testowy `sk_test_…` |
 | `STRIPE_WEBHOOK_SECRET` | Stripe → Developers → Webhooks, endpoint `POST /api/stripe/webhook`. Lokalnie: `stripe listen --forward-to localhost:3000/api/stripe/webhook` |
 | `NEXT_PUBLIC_PAYMENTS_ENABLED` | `true` żeby w formularzu zapisu pokazać płatność online |
+| `NEXT_PUBLIC_ACCOUNTS_ENABLED` | `true` włącza konta klientów (`/konto`). Przy `false` linki są ukryte, a `/konto` zwraca 404 |
+| `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | Opcjonalny klucz site Cloudflare Turnstile na rejestracji i logowaniu. Sekret CAPTCHA zostaje w Supabase |
 | `NEXT_PUBLIC_SITE_URL` | Publiczny adres strony, lokalnie `http://localhost:3000` |
 | `CRON_SECRET` | Losowy sekret; Vercel Cron wysyła `Authorization: Bearer CRON_SECRET` na `GET /api/cron/reminders` |
 | `AUTO_RELEASE_UNCONFIRMED` | `true` zwalnia niepotwierdzone sloty 24 h przed startem. **Zostaw `false`**, dopóki Ola nie zdecyduje inaczej |

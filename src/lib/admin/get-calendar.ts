@@ -5,8 +5,7 @@ import type {
   AdminClass,
   AdminSlot,
 } from "@/lib/admin/calendar-types";
-import { buildGroupMembers } from "@/lib/admin/group-members";
-import { loadGroupPassData } from "@/lib/admin/load-group-passes";
+import { loadClassRosters } from "@/lib/admin/enrollment-members";
 import type {
   BookingRow,
   ClassTypeRow,
@@ -133,7 +132,7 @@ export async function getAdminCalendar(
     supabase
       .from("recurring_classes")
       .select(
-        "id,location_id,class_type_id,weekday,start_time,duration_min,level,capacity,signup_open,active,trainer_id",
+        "id,location_id,class_type_id,weekday,start_time,duration_min,level,capacity,signup_open,active,trainer_id,price_item_id",
       )
       .eq("active", true)
       .eq("location_id", locationId),
@@ -185,27 +184,17 @@ export async function getAdminCalendar(
     bookingRows = asList(bookingsResult.data as BookingWithCustomer[] | null);
   }
 
-  const bookingsByClass = new Map<string, AdminBooking[]>();
   const bookingBySlot = new Map<string, AdminBooking>();
 
   for (const row of bookingRows) {
-    const booking = toBooking(row);
-    if (row.recurring_class_id) {
-      const list = bookingsByClass.get(row.recurring_class_id) ?? [];
-      list.push(booking);
-      bookingsByClass.set(row.recurring_class_id, list);
-    }
     if (row.slot_id && isActive(row.status)) {
-      bookingBySlot.set(row.slot_id, booking);
+      bookingBySlot.set(row.slot_id, toBooking(row));
     }
   }
 
   const todayIso = warsawTodayIso();
-  const customerIds = bookingRows
-    .map((row) => row.customer_id)
-    .filter((id): id is string => Boolean(id));
-  const [{ packages, usedByPackageId }, cancelledResult] = await Promise.all([
-    loadGroupPassData(supabase, customerIds),
+  const [rosters, cancelledResult] = await Promise.all([
+    loadClassRosters(supabase, classIds, todayIso),
     classIds.length > 0
       ? supabase
           .from("class_sessions")
@@ -229,8 +218,7 @@ export async function getAdminCalendar(
   }
 
   const classes: AdminClass[] = classRows.map((row) => {
-    const all = bookingsByClass.get(row.id) ?? [];
-    const active = all.filter((item) => isActive(item.status));
+    const seats = rosters.get(row.id) ?? { taken: 0, members: [] };
     const type = types.get(row.class_type_id);
     return {
       id: row.id,
@@ -242,17 +230,12 @@ export async function getAdminCalendar(
       slug: type?.slug ?? "",
       level: row.level,
       signupOpen: row.signup_open,
-      taken: active.length,
+      taken: seats.taken,
       capacity: row.capacity,
       trainerId: row.trainer_id,
-      bookings: all,
-      members: buildGroupMembers({
-        bookings: all,
-        packages,
-        usedByPackageId,
-        classId: row.id,
-        todayIso,
-      }),
+      priceItemId: row.price_item_id,
+      bookings: [],
+      members: seats.members,
       cancelledDates: cancelledByClass.get(row.id) ?? [],
     };
   });

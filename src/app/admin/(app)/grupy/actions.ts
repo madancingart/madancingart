@@ -7,7 +7,7 @@ import {
   groupPassDbLabel,
   groupPassTotalLessons,
 } from "@/lib/group-pricing";
-import { GROUP_PASS_KINDS } from "@/lib/membership-status";
+import { GROUP_PASS_KINDS } from "@/lib/billing/status";
 
 export type GroupActionResult =
   | { ok: true; message?: string }

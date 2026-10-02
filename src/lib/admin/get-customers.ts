@@ -2,20 +2,16 @@ import "server-only";
 
 import {
   customerDisplayName,
-  customerListPaymentStatus,
+  customerListBilling,
 } from "@/lib/admin/customer-label";
 import {
   CUSTOMER_PAGE_SIZE,
   customerSearchOrFilter,
 } from "@/lib/admin/customer-search";
 import { warsawTodayIso } from "@/lib/datetime";
-import { isGroupPassKind } from "@/lib/membership-status";
-import type { MembershipStatus } from "@/lib/membership-status";
-import type {
-  CustomerKind,
-  PackageKind,
-  PackageStatus,
-} from "@/lib/types";
+import { isWeddingPackageKind } from "@/content/packages";
+import { billingStatus, type BillingStatus } from "@/lib/billing/status";
+import type { CustomerKind } from "@/lib/types";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export { CUSTOMER_PAGE_SIZE };
@@ -24,7 +20,7 @@ export type CustomerListCard = {
   id: string;
   displayName: string;
   phone: string | null;
-  membership: MembershipStatus;
+  membership: BillingStatus;
   futureCount: number;
   createdAt: string;
 };
@@ -39,16 +35,6 @@ type CustomerListRow = {
   guardian_name: string | null;
   phone: string | null;
   created_at: string;
-};
-
-type PackageLite = {
-  id: string;
-  customer_id: string;
-  kind: PackageKind;
-  status: PackageStatus;
-  valid_from: string | null;
-  valid_until: string | null;
-  total_lessons: number | null;
 };
 
 type SlotEmbed = { starts_at: string };
@@ -108,9 +94,9 @@ export async function getCustomersPage(
       }),
       phone: row.phone,
       membership: extras.membershipById.get(row.id) ?? {
-        level: "unpaid",
-        label: "nieopłacone",
-        detail: null,
+        tone: "green",
+        reason: "clear",
+        label: "Bez zaległości",
       },
       futureCount: extras.futureById.get(row.id) ?? 0,
       createdAt: row.created_at,
@@ -123,10 +109,10 @@ async function loadListExtras(
   supabase: SupabaseClient,
   customerIds: string[],
 ): Promise<{
-  membershipById: Map<string, MembershipStatus>;
+  membershipById: Map<string, BillingStatus>;
   futureById: Map<string, number>;
 }> {
-  const membershipById = new Map<string, MembershipStatus>();
+  const membershipById = new Map<string, BillingStatus>();
   const futureById = new Map<string, number>();
   if (customerIds.length === 0) {
     return { membershipById, futureById };
@@ -135,75 +121,109 @@ async function loadListExtras(
   const todayIso = warsawTodayIso();
   const nowIso = new Date().toISOString();
 
-  const [{ data: packageRows }, { data: bookingRows }] = await Promise.all([
-    supabase
-      .from("packages")
-      .select(
-        "id,customer_id,kind,status,valid_from,valid_until,total_lessons",
-      )
-      .in("customer_id", customerIds),
-    supabase
-      .from("bookings")
-      .select(
-        "id,customer_id,kind,status,slots(starts_at),events(starts_at)",
-      )
-      .in("customer_id", customerIds)
-      .neq("status", "cancelled"),
-  ]);
+  const [{ data: packageRows }, { data: bookingRows }, { data: enrollmentRows }] =
+    await Promise.all([
+      supabase
+        .from("packages")
+        .select("customer_id, kind, status")
+        .in("customer_id", customerIds),
+      supabase
+        .from("bookings")
+        .select("id,customer_id,kind,status,slots(starts_at),events(starts_at)")
+        .in("customer_id", customerIds)
+        .neq("status", "cancelled"),
+      supabase
+        .from("enrollments")
+        .select("id, customer_id, status, billing_mode, paid_until, hold_expires_at")
+        .in("customer_id", customerIds)
+        .in("status", ["pending", "active", "paused"]),
+    ]);
 
-  const packages = (packageRows ?? []) as PackageLite[];
-  const packageIds = packages
-    .filter((pkg) => isGroupPassKind(pkg.kind))
-    .map((pkg) => pkg.id);
-  const usedByPackageId = new Map<string, number>();
-  if (packageIds.length > 0) {
-    const { data: attendance } = await supabase
-      .from("attendance")
-      .select("package_id")
-      .in("package_id", packageIds)
-      .eq("present", true);
-    for (const row of attendance ?? []) {
-      const id = row.package_id as string | null;
-      if (!id) {
-        continue;
-      }
-      usedByPackageId.set(id, (usedByPackageId.get(id) ?? 0) + 1);
+  const enrollments = (enrollmentRows ?? []) as {
+    id: string;
+    customer_id: string;
+    status: "pending" | "active" | "paused";
+    billing_mode: "monthly" | "pass4" | null;
+    paid_until: string | null;
+    hold_expires_at: string | null;
+  }[];
+  const enrollmentIds = enrollments.map((row) => row.id);
+  const chargesByEnrollment = new Map<
+    string,
+    { status: "open" | "paid"; dueDate: string; amountCents: number; periodStart: string | null; periodEnd: string | null }[]
+  >();
+  if (enrollmentIds.length > 0) {
+    const { data: chargeRows } = await supabase
+      .from("charges")
+      .select("enrollment_id, status, due_date, amount_cents, period_start, period_end")
+      .in("enrollment_id", enrollmentIds)
+      .neq("status", "void");
+    for (const charge of (chargeRows ?? []) as {
+      enrollment_id: string;
+      status: "open" | "paid";
+      due_date: string;
+      amount_cents: number;
+      period_start: string | null;
+      period_end: string | null;
+    }[]) {
+      const list = chargesByEnrollment.get(charge.enrollment_id) ?? [];
+      list.push({
+        status: charge.status,
+        dueDate: charge.due_date.slice(0, 10),
+        amountCents: charge.amount_cents,
+        periodStart: charge.period_start?.slice(0, 10) ?? null,
+        periodEnd: charge.period_end?.slice(0, 10) ?? null,
+      });
+      chargesByEnrollment.set(charge.enrollment_id, list);
     }
   }
 
-  const packagesByCustomer = new Map<string, PackageLite[]>();
-  for (const pkg of packages) {
-    const list = packagesByCustomer.get(pkg.customer_id) ?? [];
-    list.push(pkg);
-    packagesByCustomer.set(pkg.customer_id, list);
+  const statusesByCustomer = new Map<string, BillingStatus[]>();
+  for (const enrollment of enrollments) {
+    const status = billingStatus({
+      today: todayIso,
+      enrollmentStatus: enrollment.status,
+      billingMode: enrollment.billing_mode ?? "monthly",
+      paidUntil: enrollment.paid_until?.slice(0, 10) ?? null,
+      holdExpiresAt: enrollment.hold_expires_at,
+      charges: chargesByEnrollment.get(enrollment.id) ?? [],
+      pass: null,
+    });
+    const list = statusesByCustomer.get(enrollment.customer_id) ?? [];
+    list.push(status);
+    statusesByCustomer.set(enrollment.customer_id, list);
+  }
+
+  const weddingByCustomer = new Map<string, { active: boolean; pending: boolean }>();
+  for (const pkg of (packageRows ?? []) as { customer_id: string; kind: string; status: string }[]) {
+    if (!isWeddingPackageKind(pkg.kind)) {
+      continue;
+    }
+    const current = weddingByCustomer.get(pkg.customer_id) ?? { active: false, pending: false };
+    if (pkg.status === "active") {
+      current.active = true;
+    }
+    if (pkg.status === "pending_payment") {
+      current.pending = true;
+    }
+    weddingByCustomer.set(pkg.customer_id, current);
   }
 
   for (const customerId of customerIds) {
-    const list = packagesByCustomer.get(customerId) ?? [];
+    const wedding = weddingByCustomer.get(customerId);
     membershipById.set(
       customerId,
-      customerListPaymentStatus(
-        list.map((pkg) => ({
-          kind: pkg.kind,
-          status: pkg.status,
-          validFrom: pkg.valid_from,
-          validUntil: pkg.valid_until,
-          totalLessons: pkg.total_lessons,
-          usedEntries: usedByPackageId.get(pkg.id) ?? 0,
-        })),
-        todayIso,
-      ),
+      customerListBilling({
+        statuses: statusesByCustomer.get(customerId) ?? [],
+        weddingActive: wedding?.active ?? false,
+        weddingPending: wedding?.pending ?? false,
+      }),
     );
   }
 
   for (const row of bookingRows ?? []) {
     const customerId = row.customer_id as string | null;
-    if (!customerId) {
-      continue;
-    }
-    const kind = row.kind as string;
-    if (kind === "class") {
-      futureById.set(customerId, (futureById.get(customerId) ?? 0) + 1);
+    if (!customerId || row.kind === "class") {
       continue;
     }
     const slot = asOne(row.slots as SlotEmbed | SlotEmbed[] | null);

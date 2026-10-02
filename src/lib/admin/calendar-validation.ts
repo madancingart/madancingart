@@ -19,6 +19,11 @@ export const classSettingsSchema = z.object({
   signupOpen: z.boolean(),
   capacity: z.coerce.number().int().min(1).max(80),
   trainerId: trainerIdValue,
+  priceItemId: z
+    .string()
+    .trim()
+    .max(80)
+    .transform((value) => (value.length === 0 ? null : value)),
 });
 
 export const slotTrainerSchema = z.object({

@@ -13,7 +13,7 @@ const nextConfig: NextConfig = {
           {
             key: "Content-Security-Policy",
             value:
-              "frame-src https://www.google.com https://www.youtube-nocookie.com; media-src 'self';",
+              "frame-src https://www.google.com https://www.youtube-nocookie.com https://challenges.cloudflare.com; media-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com;",
           },
         ],
       },

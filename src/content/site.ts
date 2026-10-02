@@ -11,6 +11,15 @@ export type SiteSocial = {
   facebook: string;
 };
 
+export type SiteLegal = {
+  name: string;
+  address: string;
+  nip: string;
+  regon: string;
+  krs: string;
+  court: string;
+};
+
 export type Site = {
   name: string;
   tagline: string;
@@ -18,6 +27,7 @@ export type Site = {
   email: string;
   social: SiteSocial;
   locations: readonly SiteLocation[];
+  legal: SiteLegal;
 };
 
 export const site = {
@@ -42,4 +52,13 @@ export const site = {
       address: "ul. Oleska 85",
     },
   ],
+  legal: {
+    name: "M&A DANCING ART sp. z o.o.",
+    address: "ul. Świerkowa 3, 43-190 Mikołów",
+    nip: "6351872355",
+    regon: "529571931",
+    krs: "0001125382",
+    court:
+      "Sąd Rejonowy Katowice-Wschód w Katowicach, VIII Wydział Gospodarczy Krajowego Rejestru Sądowego",
+  },
 } as const satisfies Site;

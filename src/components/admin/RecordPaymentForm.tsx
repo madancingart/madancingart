@@ -7,7 +7,7 @@ import type { LocationId } from "@/content/site";
 import { groupPassSuggestions } from "@/lib/group-pricing";
 import { addMonthsIso } from "@/lib/slot-series";
 import { warsawMonthBounds, warsawTodayIso } from "@/lib/datetime";
-import type { GroupPassKind } from "@/lib/membership-status";
+import type { GroupPassKind } from "@/lib/billing/status";
 
 type RecordPaymentFormProps = {
   classId: string;

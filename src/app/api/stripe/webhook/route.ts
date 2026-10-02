@@ -1,6 +1,7 @@
 import type Stripe from "stripe";
 import { after } from "next/server";
 import { revalidatePath } from "next/cache";
+import { fulfillChargePayment, notifyChargePaymentFailed } from "@/lib/billing/fulfill";
 import { notifyBookingById } from "@/lib/booking/notify";
 import { releaseUnpaidBooking } from "@/lib/booking/release";
 import { activatePackage } from "@/lib/packages/activate";
@@ -97,7 +98,14 @@ export async function POST(request: Request) {
     event.type === "checkout.session.async_payment_succeeded"
   ) {
     const session = event.data.object;
-    if (
+    if (session.metadata?.charge_ids) {
+      const shouldBook =
+        event.type === "checkout.session.async_payment_succeeded" ||
+        session.payment_status === "paid";
+      if (shouldBook) {
+        await fulfillChargePayment(session);
+      }
+    } else if (
       event.type === "checkout.session.async_payment_succeeded" ||
       session.payment_status === "paid" ||
       session.status === "complete"
@@ -106,9 +114,20 @@ export async function POST(request: Request) {
     }
   }
 
+  if (event.type === "checkout.session.async_payment_failed") {
+    const session = event.data.object;
+    if (session.metadata?.charge_ids) {
+      await notifyChargePaymentFailed(session);
+    }
+  }
+
   if (event.type === "checkout.session.expired") {
     const bookingId = bookingIdFromSession(event.data.object);
-    if (bookingId && !event.data.object.metadata?.package_id) {
+    if (
+      bookingId &&
+      !event.data.object.metadata?.package_id &&
+      !event.data.object.metadata?.charge_ids
+    ) {
       await releaseUnpaidBooking(bookingId);
       revalidatePath("/grafik");
     }

@@ -8,6 +8,8 @@ import {
   formatTimeRange,
   nowInWarsaw,
   toWarsaw,
+  warsawTodayIso,
+  weekdayLongLabel,
 } from "@/lib/datetime";
 import type { BookingKind, BookingStatus, SlotStatus } from "@/lib/types";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -59,6 +61,11 @@ function filterLocation(
   return locationId === selected;
 }
 
+export type UnpricedGroup = {
+  id: string;
+  label: string;
+};
+
 export async function getAdminDashboard(
   supabase: SupabaseClient,
   selected: LocationId | "all",
@@ -68,6 +75,9 @@ export async function getAdminDashboard(
   pending: PendingBooking[];
   pendingCount: number;
   awaitingConfirmation: AwaitingConfirmation[];
+  unpricedGroups: UnpricedGroup[];
+  arrearsPeople: number;
+  arrearsCents: number;
 }> {
   const now = nowInWarsaw();
   const { start, end } = boundsOfWarsawDay(now);
@@ -81,6 +91,8 @@ export async function getAdminDashboard(
     pendingResult,
     pendingCountResult,
     awaitingSlotsResult,
+    unpricedResult,
+    arrearsResult,
   ] = await Promise.all([
     supabase
       .from("recurring_classes")
@@ -119,6 +131,16 @@ export async function getAdminDashboard(
       .gt("starts_at", now.toISOString())
       .lte("starts_at", new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString())
       .order("starts_at", { ascending: true }),
+    supabase
+      .from("recurring_classes")
+      .select("id, location_id, weekday, start_time, class_types(name)")
+      .eq("active", true)
+      .is("price_item_id", null),
+    supabase
+      .from("charges")
+      .select("customer_id, amount_cents, due_date, enrollments(recurring_classes(location_id))")
+      .eq("status", "open")
+      .gt("amount_cents", 0),
   ]);
 
   const types = new Map(
@@ -263,11 +285,60 @@ export async function getAdminDashboard(
       .sort((left, right) => left.startsAt.localeCompare(right.startsAt));
   }
 
+  const unpricedGroups = (
+    (unpricedResult.error ? [] : (unpricedResult.data ?? [])) as {
+      id: string;
+      location_id: string;
+      weekday: number;
+      start_time: string;
+      class_types: { name: string } | { name: string }[] | null;
+    }[]
+  )
+    .filter((row) => filterLocation(row.location_id, selected))
+    .map((row) => {
+      const type = Array.isArray(row.class_types) ? row.class_types[0] : row.class_types;
+      const name = type?.name ?? "Zajęcia";
+      const when = `${weekdayLongLabel(row.weekday)} ${row.start_time.slice(0, 5)}`;
+      return {
+        id: row.id,
+        label: `${name} (${city(row.location_id)}, ${when})`,
+      };
+    })
+    .sort((left, right) => left.label.localeCompare(right.label, "pl"));
+
+  const todayIso = warsawTodayIso();
+  const overduePeople = new Set<string>();
+  let arrearsCents = 0;
+  for (const row of (arrearsResult.error ? [] : (arrearsResult.data ?? [])) as {
+    customer_id: string;
+    amount_cents: number;
+    due_date: string;
+    enrollments: { recurring_classes: { location_id: string } | { location_id: string }[] | null } | { recurring_classes: { location_id: string } | { location_id: string }[] | null }[] | null;
+  }[]) {
+    if (row.due_date.slice(0, 10) >= todayIso) {
+      continue;
+    }
+    const enrollment = Array.isArray(row.enrollments) ? row.enrollments[0] : row.enrollments;
+    const cls = enrollment
+      ? Array.isArray(enrollment.recurring_classes)
+        ? enrollment.recurring_classes[0]
+        : enrollment.recurring_classes
+      : null;
+    if (!filterLocation(cls?.location_id ?? null, selected)) {
+      continue;
+    }
+    overduePeople.add(row.customer_id);
+    arrearsCents += row.amount_cents;
+  }
+
   return {
     today,
     todayCount: today.length,
     pending,
     pendingCount,
     awaitingConfirmation,
+    unpricedGroups,
+    arrearsPeople: overduePeople.size,
+    arrearsCents,
   };
 }

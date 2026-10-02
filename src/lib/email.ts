@@ -2,11 +2,15 @@ import "server-only";
 
 import { Resend } from "resend";
 import { site } from "@/content/site";
+import { ONSITE_LINE, PAY_BUTTON_LABEL } from "@/lib/billing/notices";
+import { formatBillingZloty } from "@/lib/billing/status";
 import { chunkItems, RESEND_BATCH_SIZE } from "@/lib/mail/batch";
 import { publicSiteUrl } from "@/lib/booking/confirmation-window";
+import { formatDayMonth } from "@/lib/datetime";
 import type { BookingTermSummary } from "@/lib/booking/term";
 
 const FROM = "M&A Dancing Art <onboarding@resend.dev>";
+const BILLING_FROM = "M&A Dancing Art <rezerwacje@madancing.art>";
 
 export type BookingEmailPayload = {
   firstName: string;
@@ -362,6 +366,8 @@ async function sendHtmlMail(input: {
   subject: string;
   html: string;
   missingKeyLog: string;
+  from?: string;
+  replyTo?: string;
 }): Promise<boolean> {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
@@ -370,16 +376,71 @@ async function sendHtmlMail(input: {
   }
   const resend = new Resend(apiKey);
   const result = await resend.emails.send({
-    from: FROM,
+    from: input.from ?? FROM,
     to: input.to,
     subject: input.subject,
     html: input.html,
+    ...(input.replyTo ? { replyTo: input.replyTo } : {}),
   });
   if (result.error) {
     console.error("Resend odrzucił wiadomość.", result.error);
     return false;
   }
   return true;
+}
+
+export async function sendBillingNoticeEmail(input: {
+  to: string;
+  subject: string;
+  text: string;
+  participantLine: string | null;
+  payUrl: string | null;
+}): Promise<boolean> {
+  const participant = input.participantLine
+    ? `<p style="margin:0 0 16px;color:#F5EFE4;line-height:1.5;">${escapeHtml(input.participantLine)}</p>`
+    : "";
+  const button = input.payUrl
+    ? `<p style="margin:0 0 20px;"><a href="${escapeHtml(input.payUrl)}" style="display:inline-block;background:#C9962E;color:#0B0B0D;text-decoration:none;padding:12px 22px;font-size:15px;">${escapeHtml(PAY_BUTTON_LABEL)}</a></p>`
+    : "";
+  return sendHtmlMail({
+    to: input.to,
+    subject: input.subject,
+    html: wrap(`
+      <p style="margin:0 0 4px;color:#C9962E;font-size:13px;letter-spacing:0.12em;">M&amp;A DANCING ART</p>
+      <p style="margin:0 0 16px;color:#F5EFE4;line-height:1.5;">${escapeHtml(input.text)}</p>
+      ${participant}
+      ${button}
+      <p style="margin:0;color:#9A948A;line-height:1.5;">${escapeHtml(ONSITE_LINE)}</p>
+    `),
+    missingKeyLog: "Brak RESEND_API_KEY — pomijam mail rozliczeniowy.",
+    from: BILLING_FROM,
+    replyTo: site.email,
+  });
+}
+
+export async function sendSchoolNoticeEmail(input: {
+  to: string;
+  subject: string;
+  text: string;
+}): Promise<boolean> {
+  const paragraphs = input.text
+    .split("\n")
+    .map(
+      (line) =>
+        `<p style="margin:0 0 8px;color:#F5EFE4;line-height:1.5;">${line ? escapeHtml(line) : "&nbsp;"}</p>`,
+    )
+    .join("");
+  return sendHtmlMail({
+    to: input.to,
+    subject: input.subject,
+    html: wrap(`
+      <p style="margin:0 0 4px;color:#C9962E;font-size:13px;letter-spacing:0.12em;">M&amp;A DANCING ART</p>
+      ${paragraphs}
+    `),
+    missingKeyLog: "Brak RESEND_API_KEY — pomijam mail do szkoły.",
+    from: BILLING_FROM,
+    replyTo: site.email,
+  });
 }
 
 export async function sendSlotConfirmationReminderEmail(
@@ -618,6 +679,48 @@ function contactClientHtml(input: ContactEmailInput): string {
   `);
 }
 
+export async function sendAccountDeletionRequestEmail(input: {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  userId: string;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    console.error("Brak RESEND_API_KEY — nie wysyłam prośby o usunięcie konta.");
+    return { ok: false, error: "Wysyłka maili jest chwilowo niedostępna." };
+  }
+
+  const resend = new Resend(apiKey);
+  const school = await resend.emails.send({
+    from: FROM,
+    to: site.email,
+    replyTo: input.email || undefined,
+    subject: `Prośba o usunięcie konta — ${input.firstName} ${input.lastName}`,
+    html: wrap(`
+      <p style="margin:0 0 4px;color:#C9962E;font-size:13px;letter-spacing:0.12em;">KONTO KLIENTA</p>
+      <h1 style="margin:0 0 20px;font-size:22px;color:#F5EFE4;">Prośba o usunięcie konta</h1>
+      <p style="margin:0 0 16px;color:#F5EFE4;line-height:1.5;">
+        Klient prosi o anonimizację konta. Usunięcie wykonuje administrator.
+      </p>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+        ${cell("Imię", `${input.firstName} ${input.lastName}`)}
+        ${cell("E-mail", input.email || "—")}
+        ${cell("Telefon", input.phone || "—")}
+        ${cell("Id konta", input.userId)}
+      </table>
+    `),
+  });
+
+  if (school.error) {
+    console.error("Resend odrzucił prośbę o usunięcie konta.", school.error);
+    return { ok: false, error: "Nie udało się wysłać wiadomości." };
+  }
+
+  return { ok: true };
+}
+
 export async function sendContactEmails(
   input: ContactEmailInput,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
@@ -657,4 +760,89 @@ export async function sendContactEmails(
   }
 
   return { ok: true };
+}
+
+export async function sendChargePaidEmail(input: {
+  email: string;
+  firstName: string;
+  amountCents: number;
+  lines: string[];
+  paidUntil: string | null;
+}): Promise<void> {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey || !input.email) {
+    return;
+  }
+  const until = input.paidUntil
+    ? `Zajęcia opłacone do ${formatDayMonth(input.paidUntil)}.`
+    : "Karnet jest aktywny.";
+  const resend = new Resend(apiKey);
+  const result = await resend.emails.send({
+    from: FROM,
+    to: input.email,
+    subject: "Dziękujemy — wpłata zaksięgowana",
+    html: wrap(`
+      <p style="margin:0 0 4px;color:#C9962E;font-size:13px;letter-spacing:0.12em;">M&amp;A DANCING ART</p>
+      <h1 style="margin:0 0 16px;font-size:22px;color:#F5EFE4;">Dziękujemy — wpłata zaksięgowana</h1>
+      <p style="margin:0 0 12px;color:#F5EFE4;line-height:1.5;">Cześć ${escapeHtml(input.firstName)},</p>
+      <p style="margin:0 0 12px;color:#F5EFE4;line-height:1.5;">Kwota: ${escapeHtml(formatBillingZloty(input.amountCents))}.</p>
+      <p style="margin:0 0 12px;color:#F5EFE4;line-height:1.5;">Za co: ${escapeHtml(input.lines.join(". "))}.</p>
+      <p style="margin:0;color:#F5EFE4;line-height:1.5;">${escapeHtml(until)}</p>
+    `),
+  });
+  if (result.error) {
+    console.error("Mail o zaksięgowanej wpłacie nie wyszedł.", result.error);
+  }
+}
+
+export async function sendVoidChargeReviewEmail(input: {
+  amountCents: number;
+  label: string;
+  stripeUrl: string;
+}): Promise<void> {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    return;
+  }
+  const resend = new Resend(apiKey);
+  const result = await resend.emails.send({
+    from: FROM,
+    to: site.email,
+    subject: "Wpłata na anulowaną należność — sprawdź i ewentualnie zwróć",
+    html: wrap(`
+      <p style="margin:0 0 4px;color:#C9962E;font-size:13px;letter-spacing:0.12em;">M&amp;A DANCING ART</p>
+      <h1 style="margin:0 0 16px;font-size:22px;color:#F5EFE4;">Wpłata na anulowaną należność — sprawdź i ewentualnie zwróć</h1>
+      <p style="margin:0 0 12px;color:#F5EFE4;line-height:1.5;">${escapeHtml(formatBillingZloty(input.amountCents))} — ${escapeHtml(input.label)}</p>
+      <p style="margin:0;color:#F5EFE4;line-height:1.5;"><a href="${escapeHtml(input.stripeUrl)}" style="color:#C9962E;">Płatność w Stripe</a></p>
+    `),
+  });
+  if (result.error) {
+    console.error("Mail o wpłacie na anulowaną należność nie wyszedł.", result.error);
+  }
+}
+
+export async function sendChargePaymentFailedEmail(input: {
+  email: string;
+  firstName: string;
+  retryUrl: string;
+}): Promise<void> {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey || !input.email) {
+    return;
+  }
+  const resend = new Resend(apiKey);
+  const result = await resend.emails.send({
+    from: FROM,
+    to: input.email,
+    subject: "Płatność nie doszła — spróbuj ponownie",
+    html: wrap(`
+      <p style="margin:0 0 4px;color:#C9962E;font-size:13px;letter-spacing:0.12em;">M&amp;A DANCING ART</p>
+      <h1 style="margin:0 0 16px;font-size:22px;color:#F5EFE4;">Płatność nie doszła</h1>
+      <p style="margin:0 0 12px;color:#F5EFE4;line-height:1.5;">Cześć ${escapeHtml(input.firstName)}, bank nie potwierdził wpłaty.</p>
+      <p style="margin:0;color:#F5EFE4;line-height:1.5;"><a href="${escapeHtml(input.retryUrl)}" style="color:#C9962E;">Spróbuj ponownie</a></p>
+    `),
+  });
+  if (result.error) {
+    console.error("Mail o nieudanej płatności nie wyszedł.", result.error);
+  }
 }

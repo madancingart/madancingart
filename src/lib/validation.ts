@@ -347,3 +347,172 @@ export const contactFormSchema = z
 
 export type ContactFormInput = z.input<typeof contactFormSchema>;
 export type ContactFormValues = z.output<typeof contactFormSchema>;
+
+const accountName = z.string().trim().min(2, "Podaj co najmniej 2 znaki.");
+
+const accountEmail = z
+  .string()
+  .trim()
+  .pipe(z.email({ error: "Podaj poprawny adres e-mail." }))
+  .transform((value) => value.toLowerCase());
+
+const accountPassword = z
+  .string()
+  .min(10, "Hasło musi mieć co najmniej 10 znaków.");
+
+export const registerFormSchema = z
+  .object({
+    firstName: accountName,
+    lastName: accountName,
+    email: accountEmail,
+    phone: phoneSchema,
+    password: accountPassword,
+    participantKind: z.enum(["self", "pair", "child"], {
+      error: "Wybierz, kogo zapisujesz.",
+    }),
+    partnerFirstName: z.string().trim().default(""),
+    partnerLastName: z.string().trim().default(""),
+    childFirstName: z.string().trim().default(""),
+    childLastName: z.string().trim().default(""),
+    interests: z.array(z.string()).default([]),
+    consentTerms: z.boolean(),
+    consentRodo: z.boolean(),
+  })
+  .superRefine((data, ctx) => {
+    if (!data.consentTerms) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["consentTerms"],
+        message: "Zaakceptuj regulamin.",
+      });
+    }
+    if (!data.consentRodo) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["consentRodo"],
+        message: "Zgoda na przetwarzanie danych jest wymagana.",
+      });
+    }
+    if (data.participantKind === "pair") {
+      if (data.partnerFirstName.length < 2) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["partnerFirstName"],
+          message: "Podaj imię partnera lub partnerki.",
+        });
+      }
+      if (data.partnerLastName.length < 2) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["partnerLastName"],
+          message: "Podaj nazwisko partnera lub partnerki.",
+        });
+      }
+    }
+    if (data.participantKind === "child") {
+      if (data.childFirstName.length < 2) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["childFirstName"],
+          message: "Podaj imię dziecka.",
+        });
+      }
+      if (data.childLastName.length < 2) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["childLastName"],
+          message: "Podaj nazwisko dziecka.",
+        });
+      }
+    }
+  });
+
+export type RegisterFormInput = z.input<typeof registerFormSchema>;
+export type RegisterFormValues = z.output<typeof registerFormSchema>;
+
+export const loginFormSchema = z.object({
+  email: accountEmail,
+  password: z.string().min(1, "Podaj hasło."),
+});
+
+export type LoginFormInput = z.input<typeof loginFormSchema>;
+export type LoginFormValues = z.output<typeof loginFormSchema>;
+
+export const newPasswordSchema = z
+  .object({
+    password: accountPassword,
+    confirm: z.string().min(1, "Powtórz hasło."),
+  })
+  .superRefine((data, ctx) => {
+    if (data.password !== data.confirm) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["confirm"],
+        message: "Hasła nie są takie same.",
+      });
+    }
+  });
+
+export type NewPasswordInput = z.input<typeof newPasswordSchema>;
+export type NewPasswordValues = z.output<typeof newPasswordSchema>;
+
+export const completeProfileSchema = z.object({
+  firstName: accountName,
+  lastName: accountName,
+  phone: phoneSchema,
+  interests: z.array(z.string()).default([]),
+});
+
+export type CompleteProfileInput = z.input<typeof completeProfileSchema>;
+export type CompleteProfileValues = z.output<typeof completeProfileSchema>;
+
+export const accountProfileSchema = z.object({
+  firstName: accountName,
+  lastName: accountName,
+  phone: phoneSchema,
+});
+
+export type AccountProfileInput = z.input<typeof accountProfileSchema>;
+export type AccountProfileValues = z.output<typeof accountProfileSchema>;
+
+export const changeEmailSchema = z.object({
+  email: accountEmail,
+});
+
+export type ChangeEmailInput = z.input<typeof changeEmailSchema>;
+export type ChangeEmailValues = z.output<typeof changeEmailSchema>;
+
+export const childParticipantSchema = z.object({
+  firstName: accountName,
+  lastName: accountName,
+});
+
+export type ChildParticipantInput = z.input<typeof childParticipantSchema>;
+export type ChildParticipantValues = z.output<typeof childParticipantSchema>;
+
+export const pairParticipantSchema = z
+  .object({
+    firstName: accountName,
+    lastName: accountName,
+    partnerFirstName: z.string().trim().default(""),
+    partnerLastName: z.string().trim().default(""),
+  })
+  .superRefine((data, ctx) => {
+    if (data.partnerFirstName.length < 2) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["partnerFirstName"],
+        message: "Podaj imię partnera lub partnerki.",
+      });
+    }
+    if (data.partnerLastName.length < 2) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["partnerLastName"],
+        message: "Podaj nazwisko partnera lub partnerki.",
+      });
+    }
+  });
+
+export type PairParticipantInput = z.input<typeof pairParticipantSchema>;
+export type PairParticipantValues = z.output<typeof pairParticipantSchema>;

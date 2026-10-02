@@ -18,6 +18,13 @@ export function mapBookingError(raw: string): {
         "Brak wolnych miejsc na to wydarzenie. Napisz do nas — spróbujemy znaleźć rozwiązanie.",
     };
   }
+  if (text.includes("account_required")) {
+    return {
+      status: 409,
+      message:
+        "Na stałe zajęcia zapisujesz się przez konto — założysz je w minutę.",
+    };
+  }
   if (text.includes("class_full")) {
     return {
       status: 409,

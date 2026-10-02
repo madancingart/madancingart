@@ -2,6 +2,8 @@ import type { LocationId } from "@/content/site";
 
 export type PriceUnit = "os/mies" | "para/mies" | "os" | "para" | "h" | "pakiet";
 
+export type PriceBilling = "monthly" | "pass4" | "one-off";
+
 export type PriceItem = {
   id: string;
   label: string;
@@ -9,6 +11,9 @@ export type PriceItem = {
   amountCents: number;
   unit: PriceUnit;
   note?: string;
+  billing: PriceBilling;
+  /** Przedpłata z promocji. Bot skleja ten okres zamiast liczyć miesiące osobno. */
+  prepaid?: { months: 3; amountCents: number; label: string };
 };
 
 export type PricingSection = {
@@ -27,6 +32,7 @@ export const pricing: Record<LocationId, PricingSection[]> = {
           detail: "45 min",
           amountCents: 13_000,
           unit: "os/mies",
+          billing: "monthly",
         },
       ],
     },
@@ -39,6 +45,7 @@ export const pricing: Record<LocationId, PricingSection[]> = {
           detail: "50 min",
           amountCents: 12_000,
           unit: "os/mies",
+          billing: "monthly",
         },
       ],
     },
@@ -51,6 +58,7 @@ export const pricing: Record<LocationId, PricingSection[]> = {
           detail: "50 min",
           amountCents: 24_000,
           unit: "para/mies",
+          billing: "monthly",
         },
         {
           id: "mikolow-uzytkowy-75",
@@ -58,6 +66,7 @@ export const pricing: Record<LocationId, PricingSection[]> = {
           detail: "1 h 15 min",
           amountCents: 36_000,
           unit: "para/mies",
+          billing: "monthly",
         },
       ],
     },
@@ -69,18 +78,21 @@ export const pricing: Record<LocationId, PricingSection[]> = {
           label: "1 h",
           amountCents: 15_000,
           unit: "h",
+          billing: "one-off",
         },
         {
           id: "mikolow-ind-6h",
           label: "Pakiet 6 h",
           amountCents: 80_000,
           unit: "pakiet",
+          billing: "one-off",
         },
         {
           id: "mikolow-ind-10h",
           label: "Pakiet 10 h",
           amountCents: 120_000,
           unit: "pakiet",
+          billing: "one-off",
         },
       ],
     },
@@ -94,6 +106,7 @@ export const pricing: Record<LocationId, PricingSection[]> = {
           label: "Zajęcia miesięczne",
           amountCents: 13_000,
           unit: "os/mies",
+          billing: "monthly",
         },
       ],
     },
@@ -106,6 +119,7 @@ export const pricing: Record<LocationId, PricingSection[]> = {
           detail: "1 h",
           amountCents: 12_000,
           unit: "os",
+          billing: "pass4",
         },
         {
           id: "lubliniec-latino-4x-75",
@@ -113,6 +127,7 @@ export const pricing: Record<LocationId, PricingSection[]> = {
           detail: "1 h 15 min",
           amountCents: 18_000,
           unit: "os",
+          billing: "pass4",
         },
       ],
     },
@@ -125,6 +140,7 @@ export const pricing: Record<LocationId, PricingSection[]> = {
           detail: "1 h",
           amountCents: 24_000,
           unit: "para",
+          billing: "pass4",
         },
         {
           id: "lubliniec-uzytkowy-4x-75",
@@ -132,6 +148,7 @@ export const pricing: Record<LocationId, PricingSection[]> = {
           detail: "1 h 15 min",
           amountCents: 36_000,
           unit: "para",
+          billing: "pass4",
         },
       ],
     },
@@ -143,18 +160,21 @@ export const pricing: Record<LocationId, PricingSection[]> = {
           label: "1 h",
           amountCents: 15_000,
           unit: "h",
+          billing: "one-off",
         },
         {
           id: "lubliniec-ind-6h",
           label: "Pakiet 6 h",
           amountCents: 80_000,
           unit: "pakiet",
+          billing: "one-off",
         },
         {
           id: "lubliniec-ind-10h",
           label: "Pakiet 10 h",
           amountCents: 120_000,
           unit: "pakiet",
+          billing: "one-off",
         },
       ],
     },
@@ -167,6 +187,7 @@ export const pricing: Record<LocationId, PricingSection[]> = {
           detail: "1 h 15 min",
           amountCents: 36_000,
           unit: "para",
+          billing: "pass4",
         },
         {
           id: "lubliniec-promo-75-8",
@@ -174,6 +195,7 @@ export const pricing: Record<LocationId, PricingSection[]> = {
           detail: "1 h 15 min",
           amountCents: 72_000,
           unit: "para",
+          billing: "one-off",
         },
         {
           id: "lubliniec-promo-75-3m-1x",
@@ -181,6 +203,12 @@ export const pricing: Record<LocationId, PricingSection[]> = {
           detail: "1 h 15 min",
           amountCents: 95_000,
           unit: "para",
+          billing: "monthly",
+          prepaid: {
+            months: 3,
+            amountCents: 95_000,
+            label: "3 miesiące 1×/tydz. — promocja",
+          },
         },
         {
           id: "lubliniec-promo-75-3m-2x",
@@ -188,6 +216,7 @@ export const pricing: Record<LocationId, PricingSection[]> = {
           detail: "1 h 15 min",
           amountCents: 190_000,
           unit: "para",
+          billing: "one-off",
         },
         {
           id: "lubliniec-promo-60-4",
@@ -195,6 +224,7 @@ export const pricing: Record<LocationId, PricingSection[]> = {
           detail: "1 h",
           amountCents: 24_000,
           unit: "para",
+          billing: "pass4",
         },
         {
           id: "lubliniec-promo-60-3m",
@@ -202,6 +232,12 @@ export const pricing: Record<LocationId, PricingSection[]> = {
           detail: "1 h",
           amountCents: 65_000,
           unit: "para",
+          billing: "monthly",
+          prepaid: {
+            months: 3,
+            amountCents: 65_000,
+            label: "3 miesiące — promocja",
+          },
         },
       ],
     },
@@ -212,14 +248,41 @@ export function isPromoSection(section: PricingSection): boolean {
   return section.title.startsWith("Promocja");
 }
 
-export function priceAmountCents(id: string): number | null {
-  for (const sections of Object.values(pricing)) {
-    for (const section of sections) {
-      const item = section.items.find((row) => row.id === id);
-      if (item) {
-        return item.amountCents;
-      }
+export type LocatedPriceItem = PriceItem & {
+  locationId: LocationId;
+  section: string;
+};
+
+export function priceItemsForLocation(locationId: LocationId): LocatedPriceItem[] {
+  return pricing[locationId].flatMap((section) =>
+    section.items.map((item) => ({
+      ...item,
+      locationId,
+      section: section.title,
+    })),
+  );
+}
+
+export function findPriceItem(id: string): LocatedPriceItem | null {
+  for (const locationId of ["mikolow", "lubliniec"] as const) {
+    const found = priceItemsForLocation(locationId).find((item) => item.id === id);
+    if (found) {
+      return found;
     }
   }
   return null;
+}
+
+/** monthly i pass4 idą na otwarte zapisy. one-off zostaje przy ręcznym rozliczeniu. */
+export function enrollmentBillingMode(
+  item: PriceItem,
+): "monthly" | "pass4" | null {
+  if (item.billing === "monthly" || item.billing === "pass4") {
+    return item.billing;
+  }
+  return null;
+}
+
+export function priceAmountCents(id: string): number | null {
+  return findPriceItem(id)?.amountCents ?? null;
 }

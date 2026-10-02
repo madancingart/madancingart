@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { addMinutes, getISODay, isSameDay } from "date-fns";
 import { useState, type ReactNode } from "react";
 import { BookingModal } from "@/components/booking/BookingModal";
+import { GroupSignupLink } from "@/components/schedule/GroupSignupLink";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
 import { site, type LocationId } from "@/content/site";
@@ -116,9 +117,6 @@ export function WeekCalendar({
       const cancelled = item.cancelledDates.includes(dateIso);
       const status = classStatus(item, start, now, cancelled);
       const lead = trainerShortName(item.trainerId);
-      const meta = [formatTimeRange(start, end), locationLabel, item.level]
-        .filter(Boolean)
-        .join(" · ");
 
       entries.push({
         sortKey: start.getHours() * 60 + start.getMinutes(),
@@ -159,25 +157,7 @@ export function WeekCalendar({
             {status.cancelled ? (
               <p className="text-sm text-muted">Odwołane</p>
             ) : status.canSignup ? (
-              <Button
-                size="sm"
-                className="min-h-11 w-full"
-                onClick={() =>
-                  setTarget({
-                    kind: "class",
-                    id: item.id,
-                    title: item.name,
-                    meta,
-                    locationId,
-                    startsAt: start.toISOString(),
-                    endsAt: end.toISOString(),
-                    classSlug: item.slug,
-                    isPair: item.isPair,
-                  })
-                }
-              >
-                Zapisz się
-              </Button>
+              <GroupSignupLink classId={item.id} />
             ) : (
               <p className="text-sm">Zapisy zamknięte</p>
             )}

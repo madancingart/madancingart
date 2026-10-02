@@ -3,11 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { X } from "lucide-react";
+import { ClassPriceField } from "@/components/admin/ClassPriceField";
 import { Button } from "@/components/ui/Button";
 import { telHref } from "@/lib/contact";
 import { formatDatePl, formatDateTimeWarsaw } from "@/lib/datetime";
 import type { AdminBooking, AdminClass, AdminSlot, AdminTrainer } from "@/lib/admin/calendar-types";
-import type { LocationId } from "@/content/site";
 import { GroupMembersList } from "@/components/admin/GroupMembersList";
 import { CustomerNameLink } from "@/components/admin/CustomerNameLink";
 import { TrainerSelect } from "@/components/admin/TrainerSelect";
@@ -166,6 +166,7 @@ export function CalendarDrawer({
                       signupOpen: !target.item.signupOpen,
                       capacity: target.item.capacity,
                       trainerId: target.item.trainerId ?? "",
+                      priceItemId: target.item.priceItemId ?? "",
                     }),
                   )
                 }
@@ -176,6 +177,7 @@ export function CalendarDrawer({
                       signupOpen: target.item.signupOpen,
                       capacity: nextCapacity,
                       trainerId: target.item.trainerId ?? "",
+                      priceItemId: target.item.priceItemId ?? "",
                     }),
                   )
                 }
@@ -186,30 +188,25 @@ export function CalendarDrawer({
                       signupOpen: target.item.signupOpen,
                       capacity: target.item.capacity,
                       trainerId,
+                      priceItemId: target.item.priceItemId ?? "",
                     }),
                   )
                 }
-                onConfirm={(booking) =>
-                  run(() => confirmBooking({ bookingId: booking.id }))
-                }
-                onCancel={(booking) =>
-                  setConfirm({
-                    title: "Anulować zapis?",
-                    body: `${booking.firstName} ${booking.lastName} zostanie usunięty z listy grupy.`,
-                    confirmLabel: "Anuluj zapis",
-                    run: () => cancelBooking({ bookingId: booking.id }),
-                  })
+                onSavePrice={(priceItemId) =>
+                  run(() =>
+                    updateClassSettings({
+                      classId: target.item.id,
+                      signupOpen: target.item.signupOpen,
+                      capacity: target.item.capacity,
+                      trainerId: target.item.trainerId ?? "",
+                      priceItemId,
+                    }),
+                  )
                 }
                 onCancelOccurrenceDone={(message) => {
                   void run(async () => ({ ok: true, message }));
                 }}
                 onCancelOccurrenceError={(message) => {
-                  void run(async () => ({ ok: false, error: message }));
-                }}
-                onPaymentDone={(message) => {
-                  void run(async () => ({ ok: true, message }));
-                }}
-                onPaymentError={(message) => {
                   void run(async () => ({ ok: false, error: message }));
                 }}
               />
@@ -360,12 +357,9 @@ function ClassPanel({
   onToggleSignup,
   onSaveCapacity,
   onSaveTrainer,
-  onConfirm,
-  onCancel,
+  onSavePrice,
   onCancelOccurrenceDone,
   onCancelOccurrenceError,
-  onPaymentDone,
-  onPaymentError,
 }: {
   item: AdminClass;
   sessionDateIso: string | null;
@@ -374,12 +368,9 @@ function ClassPanel({
   onToggleSignup: () => void;
   onSaveCapacity: (capacity: number) => void;
   onSaveTrainer: (trainerId: string) => void;
-  onConfirm: (booking: AdminBooking) => void;
-  onCancel: (booking: AdminBooking) => void;
+  onSavePrice: (priceItemId: string) => void;
   onCancelOccurrenceDone: (message: string) => void;
   onCancelOccurrenceError: (message: string) => void;
-  onPaymentDone: (message: string) => void;
-  onPaymentError: (message: string) => void;
 }) {
   const [capacity, setCapacity] = useState(item.capacity);
   const cancelled =
@@ -433,6 +424,13 @@ function ClassPanel({
         />
       </label>
 
+      <ClassPriceField
+        locationId={item.locationId}
+        value={item.priceItemId}
+        disabled={pending}
+        onChange={onSavePrice}
+      />
+
       <label className="text-[13px] text-muted">
         Pojemność
         <span className="mt-1 flex gap-2">
@@ -458,19 +456,7 @@ function ClassPanel({
         </span>
       </label>
 
-      <GroupMembersList
-        classId={item.id}
-        locationId={item.locationId as LocationId}
-        classSlug={item.slug}
-        durationMin={item.durationMin}
-        members={item.members}
-        bookings={item.bookings}
-        pending={pending}
-        onConfirm={onConfirm}
-        onCancel={onCancel}
-        onPaymentDone={onPaymentDone}
-        onPaymentError={onPaymentError}
-      />
+      <GroupMembersList classId={item.id} members={item.members} />
     </div>
   );
 }

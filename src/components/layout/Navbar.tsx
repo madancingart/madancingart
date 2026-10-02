@@ -4,6 +4,7 @@ import { Menu } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { AccountEntryLink } from "@/components/account/AccountEntryLink";
 import { MobileMenu, navIconButtonClass } from "@/components/layout/MobileMenu";
 import { Button } from "@/components/ui/Button";
 import { Container } from "@/components/ui/Container";
@@ -76,7 +77,8 @@ export function Navbar() {
           ))}
         </nav>
 
-        <div className="hidden md:block">
+        <div className="hidden items-center gap-6 md:flex">
+          <AccountEntryLink className="text-cream transition-colors duration-300 hover:text-gold" />
           <Button href={enrollLink.href} size="sm">
             {enrollLink.label}
           </Button>

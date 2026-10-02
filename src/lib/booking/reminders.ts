@@ -182,14 +182,19 @@ async function loadUpcomingSlotBookings(
   return (data ?? []) as ReminderBooking[];
 }
 
-export async function runConfirmationReminders(now: Date = new Date()): Promise<{
-  reminded: number;
-  released: number;
-}> {
+export async function runConfirmationReminders(
+  now: Date = new Date(),
+  options?: {
+    dryRun?: boolean;
+    onPlanned?: (mail: { to: string; name: string; subject: string; when: string }) => void;
+  },
+): Promise<{ reminded: number; released: number; skipped: number; errors: string[] }> {
   const supabase = createAdminClient();
   const rows = await loadUpcomingSlotBookings(supabase, now);
   let reminded = 0;
   let released = 0;
+  let skipped = 0;
+  const errors: string[] = [];
   const autoRelease = isAutoReleaseEnabled();
 
   for (const row of rows) {
@@ -204,18 +209,46 @@ export async function runConfirmationReminders(now: Date = new Date()): Promise<
 
     if (isInReminderWindow(startsAt, now)) {
       if (row.reminder_sent_at === null && row.email) {
-        const result = await sendConfirmationReminderForBooking({
-          supabase,
-          bookingId: row.id,
-        });
-        if (result.ok) {
+        const term = termLines(slot);
+        if (options?.dryRun) {
+          options.onPlanned?.({
+            to: row.email,
+            name: row.first_name,
+            subject: "Potwierdź swój termin — M&A Dancing Art",
+            when: term.when,
+          });
           reminded += 1;
+        } else {
+          const result = await sendConfirmationReminderForBooking({
+            supabase,
+            bookingId: row.id,
+          });
+          if (result.ok) {
+            reminded += 1;
+          } else {
+            errors.push(result.error);
+          }
         }
+      } else {
+        skipped += 1;
       }
       continue;
     }
 
     if (autoRelease && isUnconfirmedUrgent(startsAt, now)) {
+      const term = termLines(slot);
+      if (options?.dryRun) {
+        if (row.email) {
+          options.onPlanned?.({
+            to: row.email,
+            name: row.first_name,
+            subject: "Termin zwolniony — M&A Dancing Art",
+            when: term.when,
+          });
+        }
+        released += 1;
+        continue;
+      }
       const { error: cancelError } = await supabase
         .from("bookings")
         .update({ status: "cancelled" })
@@ -223,10 +256,10 @@ export async function runConfirmationReminders(now: Date = new Date()): Promise<
         .is("confirmed_at", null)
         .neq("status", "cancelled");
       if (cancelError) {
+        errors.push(`Nie udało się zwolnić rezerwacji ${row.id}.`);
         continue;
       }
       await supabase.from("slots").update({ status: "open" }).eq("id", slot.id);
-      const term = termLines(slot);
       if (row.email) {
         await sendSlotReleasedEmail({
           email: row.email,
@@ -245,5 +278,5 @@ export async function runConfirmationReminders(now: Date = new Date()): Promise<
     }
   }
 
-  return { reminded, released };
+  return { reminded, released, skipped, errors };
 }

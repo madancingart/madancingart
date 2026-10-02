@@ -1,6 +1,6 @@
 import { priceAmountCents } from "@/content/pricing";
 import type { LocationId } from "@/content/site";
-import type { GroupPassKind } from "@/lib/membership-status";
+import type { GroupPassKind } from "@/lib/billing/status";
 
 export type GroupPassSuggestion = {
   kind: GroupPassKind;

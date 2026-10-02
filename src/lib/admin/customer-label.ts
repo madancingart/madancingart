@@ -1,9 +1,4 @@
-import { isWeddingPackageKind } from "@/content/packages";
-import {
-  membershipStatus,
-  type MembershipPackageInput,
-  type MembershipStatus,
-} from "@/lib/membership-status";
+import { worstBillingStatus, type BillingStatus } from "@/lib/billing/status";
 import type { CustomerKind } from "@/lib/types";
 
 export type CustomerNameInput = {
@@ -37,20 +32,19 @@ export function customerFileHref(customerId: string): string {
   return `/admin/klienci/${customerId}`;
 }
 
-export function customerListPaymentStatus(
-  packages: MembershipPackageInput[],
-  todayIso: string,
-): MembershipStatus {
-  const group = membershipStatus(packages, todayIso);
-  if (group.level !== "unpaid") {
-    return group;
+export function customerListBilling(input: {
+  statuses: readonly BillingStatus[];
+  weddingActive: boolean;
+  weddingPending: boolean;
+}): BillingStatus {
+  if (input.statuses.length > 0) {
+    return worstBillingStatus(input.statuses);
   }
-  const wedding = packages.filter((pkg) => isWeddingPackageKind(pkg.kind));
-  if (wedding.some((pkg) => pkg.status === "active")) {
-    return { level: "ok", label: "opłacone", detail: "pakiet ślubny" };
+  if (input.weddingPending) {
+    return { tone: "amber", reason: "open", label: "Pakiet ślubny" };
   }
-  if (wedding.some((pkg) => pkg.status === "pending_payment")) {
-    return { level: "unpaid", label: "nieopłacone", detail: "oczekuje na płatność" };
+  if (input.weddingActive) {
+    return { tone: "green", reason: "paid", label: "Pakiet ślubny" };
   }
-  return group;
+  return { tone: "green", reason: "clear", label: "Bez zaległości" };
 }

@@ -2,14 +2,12 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { ClassPriceField } from "@/components/admin/ClassPriceField";
 import { GroupMembersList } from "@/components/admin/GroupMembersList";
 import { ToastProvider, useToast } from "@/components/admin/Toast";
 import type { AdminGroupDetail } from "@/lib/admin/calendar-types";
 import { site } from "@/content/site";
-import {
-  cancelBooking,
-  confirmBooking,
-} from "@/app/admin/(app)/kalendarz/actions";
+import { updateClassSettings } from "@/app/admin/(app)/kalendarz/actions";
 import { Button } from "@/components/ui/Button";
 import { warsawTodayIso } from "@/lib/datetime";
 
@@ -43,21 +41,15 @@ function GroupDetailInner({ data }: { data: AdminGroupDetail }) {
       ? WEEKDAY_LONG[data.weekday - 1]
       : "";
 
-  async function runConfirm(bookingId: string) {
+  async function savePrice(priceItemId: string) {
     setPending(true);
-    const result = await confirmBooking({ bookingId });
-    setPending(false);
-    if (result.ok) {
-      toast.push("ok", "Zapisane.");
-      router.refresh();
-    } else {
-      toast.push("err", result.error);
-    }
-  }
-
-  async function runCancel(bookingId: string) {
-    setPending(true);
-    const result = await cancelBooking({ bookingId });
+    const result = await updateClassSettings({
+      classId: data.id,
+      signupOpen: data.signupOpen,
+      capacity: data.capacity,
+      trainerId: data.trainerId ?? "",
+      priceItemId,
+    });
     setPending(false);
     if (result.ok) {
       toast.push("ok", "Zapisane.");
@@ -85,24 +77,20 @@ function GroupDetailInner({ data }: { data: AdminGroupDetail }) {
         >
           Dziennik zajęć
         </Button>
+        <div className="mt-4 max-w-xl">
+          <ClassPriceField
+            locationId={data.locationId}
+            value={data.priceItemId}
+            disabled={pending}
+            onChange={(priceItemId) => void savePrice(priceItemId)}
+          />
+        </div>
       </div>
 
       <GroupMembersList
         classId={data.id}
-        locationId={data.locationId}
-        classSlug={data.slug}
-        durationMin={data.durationMin}
         members={data.members}
-        bookings={data.bookings}
-        pending={pending}
         showFullLink={false}
-        onConfirm={(booking) => void runConfirm(booking.id)}
-        onCancel={(booking) => void runCancel(booking.id)}
-        onPaymentDone={(message) => {
-          toast.push("ok", message);
-          router.refresh();
-        }}
-        onPaymentError={(message) => toast.push("err", message)}
       />
 
       <Button href="/admin/kalendarz" variant="ghost" size="sm">

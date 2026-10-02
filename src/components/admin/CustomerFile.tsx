@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { CustomerBillingSection } from "@/components/admin/CustomerBillingSection";
 import { CustomerDataSection } from "@/components/admin/CustomerDataSection";
 import { CustomerHistory } from "@/components/admin/CustomerHistory";
 import { CustomerPackagesSection } from "@/components/admin/CustomerPackagesSection";
@@ -51,6 +52,7 @@ function CustomerFileInner({ data }: { data: CustomerFileData }) {
         key={`${data.customer.id}-${data.customer.firstName === "Usunięto" ? "anon" : "live"}`}
         customer={data.customer}
       />
+      <CustomerBillingSection billing={data.billing} />
       <CustomerPackagesSection
         packages={data.packages}
         enrollments={data.enrollments}

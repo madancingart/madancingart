@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  customerDisplayName,
-  customerListPaymentStatus,
-} from "@/lib/admin/customer-label";
-import type { MembershipPackageInput } from "@/lib/membership-status";
+import { customerDisplayName, customerListBilling } from "@/lib/admin/customer-label";
 
 describe("customerDisplayName", () => {
   it("joins a pair with both people", () => {
@@ -40,38 +36,28 @@ describe("customerDisplayName", () => {
   });
 });
 
-describe("customerListPaymentStatus", () => {
-  const today = "2026-09-10";
-
-  it("keeps group membership when a pass covers today", () => {
-    const packages: MembershipPackageInput[] = [
-      {
-        kind: "monthly",
-        status: "active",
-        validFrom: "2026-09-01",
-        validUntil: "2026-09-30",
-        totalLessons: null,
-        usedEntries: 0,
-      },
-    ];
-    const status = customerListPaymentStatus(packages, today);
-    expect(status.level).toBe("ok");
-    expect(status.label).toBe("opłacone");
+describe("customerListBilling", () => {
+  it("stays clear without an enrollment", () => {
+    expect(
+      customerListBilling({ statuses: [], weddingActive: false, weddingPending: false }),
+    ).toEqual({ tone: "green", reason: "clear", label: "Bez zaległości" });
   });
 
-  it("treats an active wedding package as paid", () => {
-    const packages: MembershipPackageInput[] = [
-      {
-        kind: "wedding_10",
-        status: "active",
-        validFrom: null,
-        validUntil: null,
-        totalLessons: 10,
-        usedEntries: 2,
-      },
-    ];
-    const status = customerListPaymentStatus(packages, today);
-    expect(status.level).toBe("ok");
-    expect(status.detail).toBe("pakiet ślubny");
+  it("marks a pending wedding package", () => {
+    expect(
+      customerListBilling({ statuses: [], weddingActive: false, weddingPending: true }).label,
+    ).toBe("Pakiet ślubny");
+  });
+
+  it("keeps the worse enrollment tone", () => {
+    const status = customerListBilling({
+      statuses: [
+        { tone: "green", reason: "paid", label: "Opłacone do 1.11" },
+        { tone: "red", reason: "overdue", label: "Zaległa płatność" },
+      ],
+      weddingActive: true,
+      weddingPending: false,
+    });
+    expect(status.tone).toBe("red");
   });
 });

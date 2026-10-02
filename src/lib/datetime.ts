@@ -236,6 +236,11 @@ const MONTH_GENITIVE = [
   "grudnia",
 ] as const;
 
+export function monthGenitive(isoDate: string): string {
+  const month = Number.parseInt(isoDate.slice(5, 7), 10);
+  return MONTH_GENITIVE[month - 1] ?? "";
+}
+
 /** e.g. „10 września 2026” from `YYYY-MM-DD`. */
 export function formatDatePl(isoDate: string): string {
   const [yearPart = "0", monthPart = "1", dayPart = "1"] = isoDate.split("-");

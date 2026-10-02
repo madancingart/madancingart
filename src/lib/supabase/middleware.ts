@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { accountsEnabled } from "@/lib/account/flags";
 import {
   getSupabasePublishableKey,
   getSupabaseUrl,
@@ -50,11 +51,27 @@ export async function updateSession(request: NextRequest) {
   const path = request.nextUrl.pathname;
   const isAdminArea = path === "/admin" || path.startsWith("/admin/");
   const isLogin = path === "/admin/login";
+  const isAccountArea = path === "/konto" || path.startsWith("/konto/");
+  const isAccountPublic =
+    path === "/konto/logowanie" ||
+    path === "/konto/rejestracja" ||
+    path === "/konto/nowe-haslo";
 
   if (isAdminArea && !isLogin && !hasSession) {
     const url = request.nextUrl.clone();
     url.pathname = "/admin/login";
     url.search = "";
+    const redirectResponse = NextResponse.redirect(url);
+    copyCookies(supabaseResponse, redirectResponse);
+    return redirectResponse;
+  }
+
+  if (accountsEnabled() && isAccountArea && !isAccountPublic && !hasSession) {
+    const url = request.nextUrl.clone();
+    const next = `${path}${request.nextUrl.search}`;
+    url.pathname = "/konto/logowanie";
+    url.search = "";
+    url.searchParams.set("next", next);
     const redirectResponse = NextResponse.redirect(url);
     copyCookies(supabaseResponse, redirectResponse);
     return redirectResponse;

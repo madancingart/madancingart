@@ -1,4 +1,4 @@
-import { MembershipBadge } from "@/components/admin/MembershipBadge";
+import { StatusPill } from "@/components/account/panel/StatusPill";
 import { CustomerNameLink } from "@/components/admin/CustomerNameLink";
 import { telHref } from "@/lib/contact";
 import type { CustomerListCard } from "@/lib/admin/get-customers";
@@ -43,7 +43,7 @@ export function CustomerCards({ rows }: { rows: CustomerListCard[] }) {
             )}
           </p>
           <div className="mt-2">
-            <MembershipBadge status={row.membership} />
+            <StatusPill tone={row.membership.tone} label={row.membership.label} />
           </div>
           <p className="mt-2 text-[13px] text-muted">
             {futureLabel(row.futureCount)}

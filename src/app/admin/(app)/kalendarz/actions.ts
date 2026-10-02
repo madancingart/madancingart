@@ -27,6 +27,10 @@ import { sendConfirmationReminderForBooking } from "@/lib/booking/reminders";
 import { confirmationHref } from "@/lib/booking/confirmation-window";
 import { sendSlotCancelledBySchoolEmail, sendSlotMovedEmail } from "@/lib/email";
 import { site } from "@/content/site";
+import {
+  enrollmentBillingMode,
+  findPriceItem,
+} from "@/content/pricing";
 import type { ClassTypeRow, RecurringClassRow } from "@/lib/types";
 
 export type ActionResult =
@@ -397,12 +401,30 @@ export async function updateClassSettings(
   }
 
   const { supabase } = await requireAdmin();
+  const { data: classRow } = await supabase
+    .from("recurring_classes")
+    .select("id, location_id")
+    .eq("id", parsed.data.classId)
+    .maybeSingle();
+
+  if (!classRow) {
+    return fail("Nie znaleziono grupy.");
+  }
+
+  const priceItem = parsed.data.priceItemId
+    ? findPriceItem(parsed.data.priceItemId)
+    : null;
+  if (parsed.data.priceItemId && (!priceItem || priceItem.locationId !== classRow.location_id)) {
+    return fail("Ta pozycja nie należy do cennika tej lokalizacji.");
+  }
+
   const { error } = await supabase
     .from("recurring_classes")
     .update({
       signup_open: parsed.data.signupOpen,
       capacity: parsed.data.capacity,
       trainer_id: parsed.data.trainerId,
+      price_item_id: parsed.data.priceItemId,
     })
     .eq("id", parsed.data.classId);
 
@@ -410,7 +432,20 @@ export async function updateClassSettings(
     return fail("Nie udało się zapisać ustawień grupy.");
   }
 
+  const billingMode = priceItem ? enrollmentBillingMode(priceItem) : null;
+  if (billingMode) {
+    const { error: enrollmentError } = await supabase
+      .from("enrollments")
+      .update({ billing_mode: billingMode })
+      .eq("recurring_class_id", parsed.data.classId)
+      .in("status", ["pending", "active", "paused"]);
+    if (enrollmentError) {
+      return fail("Cenę zapisano, ale nie udało się ustawić rozliczenia zapisów.");
+    }
+  }
+
   revalidateCalendar();
+  revalidatePath(`/admin/grupy/${parsed.data.classId}`);
   return { ok: true };
 }
 

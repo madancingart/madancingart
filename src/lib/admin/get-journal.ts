@@ -39,9 +39,7 @@ type CustomerEmbed = {
   guardian_name: string | null;
 };
 
-function customerFromEmbed(
-  value: CustomerEmbed | CustomerEmbed[] | null,
-): CustomerEmbed | null {
+function onePerson<T>(value: T | T[] | null): T | null {
   if (!value) {
     return null;
   }
@@ -204,39 +202,23 @@ export async function getJournal(
     return null;
   }
 
-  const { data: bookingData } = await supabase
-    .from("bookings")
+  const { data: enrollmentData } = await supabase
+    .from("enrollments")
     .select(
-      "id,first_name,last_name,phone,email,status,customer_id,customers(kind,partner_first_name,partner_last_name,guardian_name)",
+      "id,status,paid_until,customer_id,customers(first_name,last_name,kind,partner_first_name,partner_last_name,guardian_name)",
     )
     .eq("recurring_class_id", classId)
-    .neq("status", "cancelled")
-    .order("created_at", { ascending: true });
+    .in("status", ["active", "paused"]);
 
-  type BookingItem = {
+  type EnrollmentItem = {
     id: string;
-    first_name: string;
-    last_name: string | null;
-    phone: string | null;
-    email: string | null;
-    status: string;
-    customer_id: string | null;
-    customers: CustomerEmbed | CustomerEmbed[] | null;
+    status: "active" | "paused";
+    paid_until: string | null;
+    customer_id: string;
+    customers: (CustomerEmbed & { first_name: string; last_name: string }) | (CustomerEmbed & { first_name: string; last_name: string })[] | null;
   };
 
-  const bookings = asList(bookingData as BookingItem[] | null);
-  const membersByCustomer = new Map<string, BookingItem[]>();
-  const membersWithoutCustomer: BookingItem[] = [];
-
-  for (const booking of bookings) {
-    if (booking.customer_id) {
-      const list = membersByCustomer.get(booking.customer_id) ?? [];
-      list.push(booking);
-      membersByCustomer.set(booking.customer_id, list);
-    } else {
-      membersWithoutCustomer.push(booking);
-    }
-  }
+  const enrollments = asList(enrollmentData as EnrollmentItem[] | null);
 
   const { data: attendanceRows } = await supabase
     .from("attendance")
@@ -256,7 +238,7 @@ export async function getJournal(
     ]),
   );
 
-  const enrolledIds = new Set(membersByCustomer.keys());
+  const enrolledIds = new Set(enrollments.map((row) => row.customer_id));
   const dropInIds = [...attendanceByCustomer.keys()].filter(
     (id) => !enrolledIds.has(id),
   );
@@ -313,27 +295,26 @@ export async function getJournal(
 
   const people: JournalPerson[] = [];
 
-  for (const [customerId, group] of membersByCustomer) {
-    const primary = group[0];
-    if (!primary) {
-      continue;
-    }
-    const customer = customerFromEmbed(primary.customers);
-    const att = attendanceByCustomer.get(customerId);
+  for (const enrollment of enrollments) {
+    const customer = onePerson(enrollment.customers);
+    const att = attendanceByCustomer.get(enrollment.customer_id);
     const present = att?.present ?? false;
-    const packageId = present ? (att?.package_id ?? null) : null;
-    const state = journalPassState({
-      present,
-      packageId,
-      packages: packagesFor(customerId),
-      sessionDateIso: sessionDate,
-    });
+    const paused = enrollment.status === "paused";
+    const state = paused
+      ? { unpaid: false, remainingLabel: "przerwa" }
+      : journalPassState({
+          present,
+          packageId: present ? (att?.package_id ?? null) : null,
+          packages: packagesFor(enrollment.customer_id),
+          sessionDateIso: sessionDate,
+          coveredUntil: enrollment.paid_until?.slice(0, 10) ?? null,
+        });
     people.push({
-      key: customerId,
-      customerId,
-      bookingId: primary.id,
-      firstName: primary.first_name,
-      lastName: primary.last_name,
+      key: enrollment.customer_id,
+      customerId: enrollment.customer_id,
+      bookingId: null,
+      firstName: customer?.first_name ?? "Uczestnik",
+      lastName: customer?.last_name ?? null,
       customerKind: customer?.kind ?? null,
       partnerFirstName: customer?.partner_first_name ?? null,
       partnerLastName: customer?.partner_last_name ?? null,
@@ -342,24 +323,6 @@ export async function getJournal(
       present,
       unpaid: state.unpaid,
       remainingLabel: state.remainingLabel,
-    });
-  }
-
-  for (const booking of membersWithoutCustomer) {
-    people.push({
-      key: booking.id,
-      customerId: null,
-      bookingId: booking.id,
-      firstName: booking.first_name,
-      lastName: booking.last_name,
-      customerKind: null,
-      partnerFirstName: null,
-      partnerLastName: null,
-      guardianName: null,
-      dropIn: false,
-      present: false,
-      unpaid: false,
-      remainingLabel: null,
     });
   }
 

@@ -1,5 +1,5 @@
 import { formatDayMonth } from "@/lib/datetime";
-import { isCoveringDate, remainingEntriesLabel } from "@/lib/membership-status";
+import { isCoveringDate, remainingEntriesLabel } from "@/lib/billing/status";
 import type { PackageKind, PackageStatus } from "@/lib/types";
 
 export type ConsumablePass = {
@@ -71,7 +71,14 @@ export function journalPassState(input: {
   packageId: string | null;
   packages: ConsumablePass[];
   sessionDateIso: string;
+  coveredUntil?: string | null;
 }): { unpaid: boolean; remainingLabel: string | null } {
+  if (input.coveredUntil && input.coveredUntil >= input.sessionDateIso) {
+    return {
+      unpaid: false,
+      remainingLabel: `opłacone do ${formatDayMonth(input.coveredUntil)}`,
+    };
+  }
   if (hasCoveringMonthly(input.packages, input.sessionDateIso)) {
     const monthly = input.packages.find(
       (pkg) =>

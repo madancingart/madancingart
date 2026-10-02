@@ -4,12 +4,6 @@ import {
   sanitizeSearch,
   type BookingListFilters,
 } from "@/lib/admin/booking-filters";
-import { loadGroupPassData } from "@/lib/admin/load-group-passes";
-import { warsawTodayIso } from "@/lib/datetime";
-import {
-  membershipStatus,
-  type MembershipStatus,
-} from "@/lib/membership-status";
 import type { BookingKind, BookingStatus, PaymentStatus } from "@/lib/types";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -35,7 +29,6 @@ export type AdminBookingListRow = {
   className: string | null;
   recurringClassId: string | null;
   customerId: string | null;
-  membership: MembershipStatus | null;
 };
 
 const COLUMNS =
@@ -79,7 +72,6 @@ function mapRow(row: Record<string, unknown>): AdminBookingListRow {
     className: (row.class_name as string | null) ?? null,
     recurringClassId: (row.recurring_class_id as string | null) ?? null,
     customerId: (row.customer_id as string | null) ?? null,
-    membership: null,
   };
 }
 
@@ -132,68 +124,6 @@ function startListQuery(
   return select as unknown as BookingListQuery;
 }
 
-async function attachMembership(
-  supabase: SupabaseClient,
-  rows: AdminBookingListRow[],
-): Promise<AdminBookingListRow[]> {
-  const classRows = rows.filter(
-    (row) => row.kind === "class" && row.status !== "cancelled",
-  );
-  if (classRows.length === 0) {
-    return rows;
-  }
-
-  const ids = classRows.map((row) => row.id);
-  const { data: extras } = await supabase
-    .from("bookings")
-    .select("id,customer_id")
-    .in("id", ids);
-
-  const customerByBooking = new Map<string, string | null>();
-  for (const extra of extras ?? []) {
-    customerByBooking.set(
-      extra.id as string,
-      (extra.customer_id as string | null) ?? null,
-    );
-  }
-
-  const customerIds = [...customerByBooking.values()].filter(
-    (id): id is string => Boolean(id),
-  );
-  const { packages, usedByPackageId } = await loadGroupPassData(
-    supabase,
-    customerIds,
-  );
-  const todayIso = warsawTodayIso();
-
-  return rows.map((row) => {
-    if (row.kind !== "class" || row.status === "cancelled") {
-      return row;
-    }
-    const customerId = customerByBooking.get(row.id) ?? row.customerId;
-    const classPackages = packages.filter(
-      (pkg) =>
-        pkg.customer_id === customerId &&
-        pkg.recurring_class_id === row.recurringClassId,
-    );
-    return {
-      ...row,
-      customerId,
-      membership: membershipStatus(
-        classPackages.map((pkg) => ({
-          kind: pkg.kind,
-          status: pkg.status,
-          validFrom: pkg.valid_from,
-          validUntil: pkg.valid_until,
-          totalLessons: pkg.total_lessons,
-          usedEntries: usedByPackageId.get(pkg.id) ?? 0,
-        })),
-        todayIso,
-      ),
-    };
-  });
-}
-
 export async function getAdminBookingsPage(
   supabase: SupabaseClient,
   filters: BookingListFilters,
@@ -211,10 +141,7 @@ export async function getAdminBookingsPage(
   }
 
   return {
-    rows: await attachMembership(
-      supabase,
-      (data ?? []).map((row) => mapRow(row)),
-    ),
+    rows: (data ?? []).map((row) => mapRow(row)),
     total: count ?? 0,
   };
 }
@@ -232,8 +159,5 @@ export async function getAdminBookingsExport(
     return [];
   }
 
-  return attachMembership(
-    supabase,
-    (data ?? []).map((row) => mapRow(row)),
-  );
+  return (data ?? []).map((row) => mapRow(row));
 }

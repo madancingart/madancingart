@@ -5,6 +5,7 @@ import { getAdminDashboard } from "@/lib/admin/dashboard";
 import type { LocationId } from "@/content/site";
 import { telHref } from "@/lib/contact";
 import { CustomerNameLink } from "@/components/admin/CustomerNameLink";
+import { formatBillingZloty } from "@/lib/billing/status";
 
 type PageProps = {
   searchParams: Promise<{ lokalizacja?: string }>;
@@ -50,7 +51,40 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
             Otwórz listę
           </Link>
         </article>
+        <article className="border border-white/10 bg-black-soft p-4">
+          <p className="text-[12px] text-muted">Zaległości</p>
+          <p className="mt-1 text-2xl text-gold">
+            {data.arrearsPeople} osób, {formatBillingZloty(data.arrearsCents)}
+          </p>
+          <Link
+            href={
+              location === "all"
+                ? "/admin/rozliczenia?zalegle=1"
+                : `/admin/rozliczenia?zalegle=1&lokalizacja=${location}`
+            }
+            className="mt-2 inline-block text-[12px] text-muted hover:text-gold"
+          >
+            Otwórz tabelę
+          </Link>
+        </article>
       </div>
+      {data.unpricedGroups.length > 0 ? (
+        <p className="border border-gold/50 bg-black-soft p-4 text-[13px] leading-relaxed text-cream">
+          Grupy bez ceny — bot ich nie rozlicza:{" "}
+          {data.unpricedGroups.map((group, index) => (
+            <span key={group.id}>
+              {index > 0 ? ", " : null}
+              <Link
+                href={`/admin/grupy/${group.id}`}
+                className="text-gold hover:text-gold-light"
+              >
+                {group.label}
+              </Link>
+            </span>
+          ))}
+          .
+        </p>
+      ) : null}
       <div className="flex flex-wrap gap-2">
         <Link
           href="/admin/kalendarz?nowy=slot"

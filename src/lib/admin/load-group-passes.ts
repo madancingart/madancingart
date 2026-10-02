@@ -1,8 +1,23 @@
 import "server-only";
 
+import type { PackageKind, PackagePaymentMethod, PackageStatus } from "@/lib/types";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { GroupPackageRow } from "@/lib/admin/group-members";
-import { GROUP_PASS_KINDS } from "@/lib/membership-status";
+import { GROUP_PASS_KINDS } from "@/lib/billing/status";
+
+export type GroupPackageRow = {
+  id: string;
+  customer_id: string;
+  recurring_class_id: string | null;
+  kind: PackageKind;
+  label: string;
+  status: PackageStatus;
+  valid_from: string | null;
+  valid_until: string | null;
+  total_lessons: number | null;
+  paid_at: string | null;
+  payment_method: PackagePaymentMethod | null;
+  price_cents: number;
+};
 
 export async function loadGroupPassData(
   supabase: SupabaseClient,

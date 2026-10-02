@@ -10,8 +10,9 @@ import {
   weekOffsetFromIso,
 } from "@/lib/admin/calendar-url";
 import { statusLabel } from "@/lib/admin/booking-labels";
-import { formatDateTimeWarsaw, nowInWarsaw } from "@/lib/datetime";
-import { isGroupPassKind } from "@/lib/membership-status";
+import { formatDateTimeWarsaw, nowInWarsaw, warsawTodayIso } from "@/lib/datetime";
+import { billingStatus, chargeStatusPill } from "@/lib/billing/status";
+import { isGroupPassKind } from "@/lib/billing/status";
 import type { LocationId } from "@/content/site";
 import type { AdminTrainer } from "@/lib/admin/calendar-types";
 import type {
@@ -99,10 +100,37 @@ export type CustomerHistoryItem = {
   href: string | null;
 };
 
+export type CustomerBillingEnrollment = {
+  id: string;
+  className: string;
+  statusLabel: string;
+  paidUntil: string | null;
+  tone: "red" | "amber" | "pending" | "green";
+  label: string;
+};
+
+export type CustomerBillingCharge = {
+  id: string;
+  className: string;
+  period: string | null;
+  amountCents: number;
+  dueDate: string;
+  tone: "red" | "amber" | "pending" | "green";
+  label: string;
+};
+
+export type CustomerBillingView = {
+  hasAccount: boolean;
+  email: string | null;
+  enrollments: CustomerBillingEnrollment[];
+  charges: CustomerBillingCharge[];
+};
+
 export type CustomerFileData = {
   customer: CustomerFileRecord;
   packages: CustomerPackageCard[];
   enrollments: CustomerClassEnrollment[];
+  billing: CustomerBillingView;
   trainers: AdminTrainer[];
   history: CustomerHistoryItem[];
 };
@@ -142,6 +170,9 @@ const AUDIT_LABELS: Record<string, string> = {
   "class_session.cancelled": "Odwołano zajęcia",
   "class_session.cancelled_notified": "Powiadomiono o odwołaniu zajęć",
   "payment.recorded": "Odnotowano wpłatę",
+  "paid_until.set": "Ustawiono opłacone do",
+  "charge.voided": "Anulowano należność",
+  "account.claimed": "Podpięto konto",
   "package.activated": "Aktywowano pakiet",
   "booking.moved": "Przeniesiono rezerwację",
   "booking.cancelled": "Odwołano rezerwację",
@@ -154,7 +185,7 @@ export async function getCustomerFile(
   const { data: row } = await supabase
     .from("customers")
     .select(
-      "id,kind,first_name,last_name,partner_first_name,partner_last_name,guardian_name,guardian_phone,phone,email,notes,created_at",
+      "id,kind,first_name,last_name,partner_first_name,partner_last_name,guardian_name,guardian_phone,phone,email,notes,created_at,owner_user_id",
     )
     .eq("id", customerId)
     .maybeSingle();
@@ -401,11 +432,18 @@ export async function getCustomerFile(
   history.sort((left, right) => right.at.localeCompare(left.at));
 
   const uniqueEnrollments = dedupeEnrollments(enrollments);
+  const billing = await loadCustomerBilling(
+    supabase,
+    customerId,
+    customer.email,
+    (row.owner_user_id as string | null) ?? null,
+  );
 
   return {
     customer,
     packages,
     enrollments: uniqueEnrollments,
+    billing,
     trainers: sortTrainers((trainersResult.data ?? []) as TrainerRow[]),
     history,
   };
@@ -459,11 +497,107 @@ function auditDetail(value: unknown): string | null {
   }
   const record = value as Record<string, unknown>;
   const parts: string[] = [];
-  for (const key of ["channel", "reason", "from", "to"]) {
+  for (const key of ["channel", "reason", "from", "to", "until", "note"]) {
     const item = record[key];
     if (typeof item === "string" && item.trim()) {
       parts.push(item);
     }
   }
   return parts.length > 0 ? parts.join(" · ") : null;
+}
+
+const ENROLLMENT_STATUS_LABEL: Record<string, string> = {
+  pending: "czeka na płatność",
+  active: "aktywny",
+  paused: "przerwa",
+  ended: "zakończony",
+  lapsed: "wygasł",
+};
+
+async function loadCustomerBilling(
+  supabase: SupabaseClient,
+  customerId: string,
+  email: string | null,
+  ownerUserId: string | null,
+): Promise<CustomerBillingView> {
+  const today = warsawTodayIso();
+  const [{ data: enrollmentRows }, { data: chargeRows }] = await Promise.all([
+    supabase
+      .from("enrollments")
+      .select(
+        "id, status, billing_mode, paid_until, hold_expires_at, recurring_classes(class_types(name))",
+      )
+      .eq("customer_id", customerId)
+      .order("started_on", { ascending: false }),
+    supabase
+      .from("charges")
+      .select("id, enrollment_id, label, period_start, period_end, amount_cents, due_date, status")
+      .eq("customer_id", customerId)
+      .order("due_date", { ascending: false }),
+  ]);
+
+  const chargeRecords = (chargeRows ?? []) as Record<string, unknown>[];
+  const chargesForEnrollment = new Map<string, { status: "open" | "paid" | "void"; dueDate: string; amountCents: number; periodStart: string | null; periodEnd: string | null }[]>();
+  for (const row of chargeRecords) {
+    const enrollmentId = row.enrollment_id ? String(row.enrollment_id) : "";
+    if (!enrollmentId || row.status === "void") {
+      continue;
+    }
+    const list = chargesForEnrollment.get(enrollmentId) ?? [];
+    list.push({
+      status: row.status as "open" | "paid",
+      dueDate: String(row.due_date).slice(0, 10),
+      amountCents: Number(row.amount_cents),
+      periodStart: row.period_start ? String(row.period_start).slice(0, 10) : null,
+      periodEnd: row.period_end ? String(row.period_end).slice(0, 10) : null,
+    });
+    chargesForEnrollment.set(enrollmentId, list);
+  }
+
+  const enrollments = ((enrollmentRows ?? []) as Record<string, unknown>[]).map((row) => {
+    const cls = asOne(row.recurring_classes as { class_types: { name: string } | { name: string }[] | null } | { class_types: { name: string } | { name: string }[] | null }[] | null);
+    const type = cls ? asOne(cls.class_types) : null;
+    const status = String(row.status);
+    const pill = billingStatus({
+      today,
+      enrollmentStatus: status as "pending" | "active" | "paused" | "ended" | "lapsed",
+      billingMode: (row.billing_mode as "monthly" | "pass4" | null) ?? "monthly",
+      paidUntil: row.paid_until ? String(row.paid_until).slice(0, 10) : null,
+      holdExpiresAt: (row.hold_expires_at as string | null) ?? null,
+      charges: chargesForEnrollment.get(String(row.id)) ?? [],
+      pass: null,
+    });
+    return {
+      id: String(row.id),
+      className: type?.name ?? "Zajęcia",
+      statusLabel: ENROLLMENT_STATUS_LABEL[status] ?? status,
+      paidUntil: row.paid_until ? String(row.paid_until).slice(0, 10) : null,
+      tone: pill.tone,
+      label: pill.label,
+    };
+  });
+
+  const charges = chargeRecords.map((row) => {
+    const status = row.status as "open" | "paid" | "void";
+    const dueDate = String(row.due_date).slice(0, 10);
+    const pill = chargeStatusPill(status, dueDate, today);
+    const start = row.period_start ? String(row.period_start).slice(0, 10) : null;
+    const end = row.period_end ? String(row.period_end).slice(0, 10) : null;
+    return {
+      id: String(row.id),
+      className: String(row.label),
+      period: start && end ? `${start} – ${end}` : null,
+      amountCents: Number(row.amount_cents),
+      dueDate,
+      tone: pill.tone,
+      label: pill.label,
+    };
+  });
+
+  return {
+    hasAccount: Boolean(ownerUserId),
+    email,
+    enrollments,
+    charges,
+  };
 }

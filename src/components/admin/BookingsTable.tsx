@@ -3,7 +3,6 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
-import { MembershipBadge } from "@/components/admin/MembershipBadge";
 import { CustomerNameLink } from "@/components/admin/CustomerNameLink";
 import { ToastProvider, useToast } from "@/components/admin/Toast";
 import { telHref } from "@/lib/contact";
@@ -104,11 +103,7 @@ function BookingsTableInner({ rows }: { rows: AdminBookingListRow[] }) {
               <td className="max-w-xs px-2 py-3 text-muted">{subjectLabel(row)}</td>
               <td className="px-2 py-3 text-cream">{statusLabel(row.status)}</td>
               <td className="px-2 py-3 text-muted">
-                {row.kind === "class" && row.membership ? (
-                  <MembershipBadge status={row.membership} />
-                ) : (
-                  paymentLabel(row.paymentStatus)
-                )}
+                {paymentLabel(row.paymentStatus)}
               </td>
               <td className="px-2 py-3">
                 <div className="flex flex-col gap-1">
