@@ -846,3 +846,64 @@ export async function sendChargePaymentFailedEmail(input: {
     console.error("Mail o nieudanej płatności nie wyszedł.", result.error);
   }
 }
+
+export async function sendCourseEnrolledEmail(input: {
+  email: string;
+  firstName: string;
+  title: string;
+  dates: string[];
+  ics: string;
+}): Promise<void> {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey || !input.email) {
+    return;
+  }
+  const list = input.dates.map((date) => `<li>${escapeHtml(date)}</li>`).join("");
+  const resend = new Resend(apiKey);
+  const result = await resend.emails.send({
+    from: BILLING_FROM,
+    replyTo: site.email,
+    to: input.email,
+    subject: `Jesteś zapisany/a na kurs ${input.title}`,
+    html: wrap(`
+      <p style="margin:0 0 4px;color:#C9962E;font-size:13px;letter-spacing:0.12em;">M&amp;A DANCING ART</p>
+      <h1 style="margin:0 0 16px;font-size:22px;color:#F5EFE4;">Jesteś zapisany/a na kurs ${escapeHtml(input.title)}</h1>
+      <p style="margin:0 0 12px;color:#F5EFE4;line-height:1.5;">Cześć ${escapeHtml(input.firstName)}, miejsce jest potwierdzone. Terminy:</p>
+      <ul style="margin:0 0 12px;color:#F5EFE4;line-height:1.5;">${list}</ul>
+      <p style="margin:0;color:#F5EFE4;line-height:1.5;">W załączniku jest plik kalendarza ze wszystkimi spotkaniami.</p>
+    `),
+    attachments: [
+      {
+        filename: "kurs.ics",
+        content: Buffer.from(input.ics, "utf8").toString("base64"),
+      },
+    ],
+  });
+  if (result.error) {
+    console.error("Mail o zapisie na kurs nie wyszedł.", result.error);
+  }
+}
+
+export async function sendCourseWaitlistEmail(input: {
+  title: string;
+  name: string;
+  email: string;
+  phone: string;
+}): Promise<boolean> {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    return false;
+  }
+  const resend = new Resend(apiKey);
+  const result = await resend.emails.send({
+    from: FROM,
+    to: site.email,
+    replyTo: input.email,
+    subject: `Lista rezerwowa: ${input.title}`,
+    html: wrap(`
+      <p style="margin:0 0 12px;color:#F5EFE4;line-height:1.5;">Ktoś chce miejsce na kursie ${escapeHtml(input.title)}, gdy ktoś zrezygnuje.</p>
+      <p style="margin:0;color:#F5EFE4;line-height:1.5;">${escapeHtml(input.name)} · ${escapeHtml(input.phone)} · ${escapeHtml(input.email)}</p>
+    `),
+  });
+  return !result.error;
+}

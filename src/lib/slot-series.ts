@@ -51,6 +51,7 @@ export type SeriesClassBlock = {
 export type SeriesExistingSlot = {
   startsAt: string;
   endsAt: string;
+  label?: string;
 };
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -292,7 +293,7 @@ export function occupiedFromTrainerSlots(
         date,
         startMin,
         endMin,
-        label: `istniejący termin ${formatHm(startMin)}`,
+        label: slot.label ?? `istniejący termin ${formatHm(startMin)}`,
       },
     ];
   });

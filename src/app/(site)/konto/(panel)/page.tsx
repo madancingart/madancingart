@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { StatusPill } from "@/components/account/panel/StatusPill";
 import { firstParam } from "@/lib/account/params";
 import { Button } from "@/components/ui/Button";
+import { loadMyCourses } from "@/lib/account/courses";
 import { loadClassPanel } from "@/lib/account/panel";
 import { site } from "@/content/site";
 
@@ -16,7 +17,7 @@ export default async function LessonsPage({
 }) {
   const params = await searchParams;
   const paymentCancelled = firstParam(params.platnosc) === "anulowana";
-  const panel = await loadClassPanel();
+  const [panel, courses] = await Promise.all([loadClassPanel(), loadMyCourses()]);
 
   if (!panel) {
     return (
@@ -121,7 +122,49 @@ export default async function LessonsPage({
         )}
       </section>
 
-      {/* Karty kursów — lista spotkań i obecności — pojawią się po prompcie 38. */}
+      <section className="space-y-3">
+        <h2 className="text-lg text-cream">Kursy</h2>
+        {courses === null ? (
+          <p role="alert" className="text-sm text-[#E8A0A0]">
+            Nie udało się wczytać kursów.
+          </p>
+        ) : courses.length === 0 ? (
+          <p className="text-sm text-muted">Nie masz zapisów na kursy.</p>
+        ) : (
+          <ul className="space-y-3">
+            {courses.map((course) => (
+              <li key={course.id}>
+                <article className="border border-white/10 bg-black-soft p-4">
+                  <h3 className="text-base text-cream">{course.title}</h3>
+                  <p className="mt-1 text-sm text-cream">Uczestnik: {course.participant}</p>
+                  <div className="mt-3">
+                    <StatusPill tone={course.tone} label={course.label} />
+                  </div>
+                  <ul className="mt-3 space-y-1">
+                    {course.sessions.map((session) => (
+                      <li key={session.id} className="text-sm text-muted">
+                        {session.when}
+                        {session.cancelled
+                          ? " · odwołane"
+                          : session.present === null
+                            ? ""
+                            : session.present
+                              ? " · obecność"
+                              : " · nieobecność"}
+                      </li>
+                    ))}
+                  </ul>
+                  {course.payHref ? (
+                    <Button href={course.payHref} size="sm" className="mt-3">
+                      Opłać
+                    </Button>
+                  ) : null}
+                </article>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
     </div>
   );
 }

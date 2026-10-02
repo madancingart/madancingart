@@ -1,6 +1,7 @@
 import "server-only";
 
 import type Stripe from "stripe";
+import { sendSeriesConfirmation } from "@/lib/courses/confirm";
 import {
   sendChargePaidEmail,
   sendChargePaymentFailedEmail,
@@ -26,7 +27,12 @@ export async function fulfillChargePayment(session: Stripe.Checkout.Session): Pr
   }
 
   const admin = createAdminClient();
-  const booked: { label: string; amountCents: number; customerId: string }[] = [];
+  const booked: {
+    label: string;
+    amountCents: number;
+    customerId: string;
+    seriesBookingId: string | null;
+  }[] = [];
   const enrollmentIds = new Set<string>();
 
   for (const chargeId of ids) {
@@ -41,7 +47,7 @@ export async function fulfillChargePayment(session: Stripe.Checkout.Session): Pr
 
     const { data: charge } = await admin
       .from("charges")
-      .select("label, amount_cents, customer_id, enrollment_id, status")
+      .select("label, amount_cents, customer_id, enrollment_id, series_booking_id, kind, status")
       .eq("id", chargeId)
       .maybeSingle();
     const row = charge as {
@@ -49,6 +55,8 @@ export async function fulfillChargePayment(session: Stripe.Checkout.Session): Pr
       amount_cents: number;
       customer_id: string;
       enrollment_id: string | null;
+      series_booking_id: string | null;
+      kind: string;
       status: string;
     } | null;
     if (!row) {
@@ -70,6 +78,7 @@ export async function fulfillChargePayment(session: Stripe.Checkout.Session): Pr
         label: row.label,
         amountCents: row.amount_cents,
         customerId: row.customer_id,
+        seriesBookingId: row.kind === "series" ? row.series_booking_id : null,
       });
     }
   }
@@ -78,19 +87,25 @@ export async function fulfillChargePayment(session: Stripe.Checkout.Session): Pr
     return;
   }
 
+  const courses = booked.filter((item) => item.seriesBookingId);
+  const rest = booked.filter((item) => !item.seriesBookingId);
   const customerId = booked[0]?.customerId;
-  if (!customerId) {
-    return;
+  if (rest.length > 0 && customerId) {
+    const recipient = await chargeRecipient(customerId);
+    const paidUntil = await latestPaidUntil([...enrollmentIds]);
+    await sendChargePaidEmail({
+      email: recipient.email,
+      firstName: recipient.firstName,
+      amountCents: rest.reduce((sum, item) => sum + item.amountCents, 0),
+      lines: rest.map((item) => item.label),
+      paidUntil,
+    });
   }
-  const recipient = await chargeRecipient(customerId);
-  const paidUntil = await latestPaidUntil([...enrollmentIds]);
-  await sendChargePaidEmail({
-    email: recipient.email,
-    firstName: recipient.firstName,
-    amountCents: booked.reduce((sum, item) => sum + item.amountCents, 0),
-    lines: booked.map((item) => item.label),
-    paidUntil,
-  });
+  for (const course of courses) {
+    if (course.seriesBookingId) {
+      await sendSeriesConfirmation(course.seriesBookingId);
+    }
+  }
 }
 
 export async function notifyChargePaymentFailed(

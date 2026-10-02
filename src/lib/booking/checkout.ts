@@ -139,6 +139,29 @@ async function resolveQuote(input: BookingApiInput): Promise<ChargeQuote | null>
     });
   }
 
+  if (input.kind === "event") {
+    const admin = createAdminClient();
+    const { data } = await admin
+      .from("events")
+      .select("price_cents, title, signup_open, cancelled_at")
+      .eq("id", input.targetId)
+      .maybeSingle();
+    const event = data as {
+      price_cents: number | null;
+      title: string;
+      signup_open: boolean;
+      cancelled_at: string | null;
+    } | null;
+    if (!event || !event.signup_open || event.cancelled_at || event.price_cents == null) {
+      return null;
+    }
+    return {
+      amountCents: event.price_cents,
+      productName: event.title,
+      productDescription: "Zapis na spotkanie — płatność online",
+    };
+  }
+
   return quoteBookingCharge({
     kind: input.kind,
     locationId: input.locationId,

@@ -59,6 +59,8 @@ export type EventRow = {
   published: boolean;
   series_id: string | null;
   session_no: number | null;
+  price_cents?: number | null;
+  cancelled_at?: string | null;
 };
 
 export type BookingRow = {

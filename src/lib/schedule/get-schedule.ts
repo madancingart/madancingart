@@ -73,7 +73,7 @@ export async function getSchedule(): Promise<ScheduleData | null> {
     supabase
       .from("events")
       .select(
-        "id,location_id,title,description,starts_at,ends_at,capacity,signup_open,published",
+        "id,location_id,title,description,starts_at,ends_at,capacity,signup_open,published,series_id,session_no,cancelled_at",
       )
       .eq("published", true)
       .gte("starts_at", from.toISOString())
@@ -91,10 +91,26 @@ export async function getSchedule(): Promise<ScheduleData | null> {
     typesResult.error ||
     locationsResult.error ||
     calendarResult.error ||
-    occupancyResult.error ||
-    eventsResult.error
+    occupancyResult.error
   ) {
     return null;
+  }
+
+  let eventRowsRaw = asList(eventsResult.data as EventRow[] | null);
+  if (eventsResult.error) {
+    const fallback = await supabase
+      .from("events")
+      .select(
+        "id,location_id,title,description,starts_at,ends_at,capacity,signup_open,published,series_id,session_no",
+      )
+      .eq("published", true)
+      .gte("starts_at", from.toISOString())
+      .lt("starts_at", until.toISOString())
+      .order("starts_at", { ascending: true });
+    if (fallback.error) {
+      return null;
+    }
+    eventRowsRaw = asList(fallback.data as EventRow[] | null);
   }
 
   const types = new Map(
@@ -167,18 +183,43 @@ export async function getSchedule(): Promise<ScheduleData | null> {
       trainerId: row.trainer_id,
     }));
 
-  const events: ScheduleEvent[] = asList(
-    eventsResult.data as EventRow[] | null,
-  )
-    .filter((row) => row.published)
-    .map((row) => ({
+  const eventRows = eventRowsRaw.filter((row) => row.published);
+  const seriesIds = [
+    ...new Set(
+      eventRows
+        .map((row) => row.series_id)
+        .filter((id): id is string => Boolean(id)),
+    ),
+  ];
+  const sessionTotals = new Map<string, number>();
+  if (seriesIds.length > 0) {
+    const { data: siblings } = await supabase
+      .from("events")
+      .select("series_id")
+      .in("series_id", seriesIds)
+      .eq("published", true);
+    for (const row of (siblings ?? []) as { series_id: string | null }[]) {
+      if (!row.series_id) {
+        continue;
+      }
+      sessionTotals.set(row.series_id, (sessionTotals.get(row.series_id) ?? 0) + 1);
+    }
+  }
+
+  const events: ScheduleEvent[] = eventRows.map((row) => {
+    const total = row.series_id ? sessionTotals.get(row.series_id) : undefined;
+    const cancelled = Boolean(row.cancelled_at);
+    return {
       id: row.id,
       locationId: row.location_id,
       title: row.title,
       startsAt: row.starts_at,
       endsAt: row.ends_at,
-      signupOpen: row.signup_open,
-    }));
+      signupOpen: row.signup_open && !cancelled,
+      sessionLabel: row.session_no && total ? `${row.session_no}/${total}` : null,
+      cancelled,
+    };
+  });
 
   return { classes, slots, events };
 }

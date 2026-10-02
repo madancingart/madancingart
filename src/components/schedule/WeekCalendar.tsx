@@ -240,15 +240,20 @@ export function WeekCalendar({
       const end = toWarsaw(event.endsAt);
       const time = formatTimeRange(start, end);
       const meta = `${time} · ${locationLabel}`;
-      const canSignup = event.signupOpen && !isPast(start, now);
+      const canSignup = event.signupOpen && !event.cancelled && !isPast(start, now);
 
       entries.push({
         sortKey: start.getHours() * 60 + start.getMinutes(),
         node: (
           <article className="flex flex-col gap-2 bg-[image:var(--gold-gradient)] p-3 text-black">
-            <p className="font-semibold">{event.title}</p>
+            <p className="font-semibold">
+              {event.title}
+              {event.sessionLabel ? ` · ${event.sessionLabel}` : ""}
+            </p>
             <p className="text-sm opacity-80">{time}</p>
-            {canSignup ? (
+            {event.cancelled ? (
+              <p className="text-sm">Odwołane</p>
+            ) : canSignup ? (
               <Button
                 size="sm"
                 variant="outline"

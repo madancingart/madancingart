@@ -32,3 +32,15 @@ export async function createClient() {
     },
   });
 }
+
+/** Odczyt publiczny bez ciastek — strony SSG (kursy) nie wchodzą w dynamiczne renderowanie. */
+export function createPublicClient() {
+  return createServerClient(getSupabaseUrl(), getSupabasePublishableKey(), {
+    cookies: {
+      getAll() {
+        return [];
+      },
+      setAll() {},
+    },
+  });
+}

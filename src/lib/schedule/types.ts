@@ -35,6 +35,8 @@ export type ScheduleEvent = {
   startsAt: string;
   endsAt: string;
   signupOpen: boolean;
+  sessionLabel: string | null;
+  cancelled: boolean;
 };
 
 export type ScheduleData = {

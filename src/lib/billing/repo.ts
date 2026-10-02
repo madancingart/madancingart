@@ -168,3 +168,50 @@ export async function createCharge(input: {
 
   throw new Error("Nie udało się wystawić należności.");
 }
+
+export async function createSeriesCharge(input: {
+  customerId: string;
+  seriesBookingId: string;
+  amountCents: number;
+  label: string;
+  dueDate: string;
+  sessionsCount: number;
+}): Promise<{ id: string; created: boolean; status: "open" | "paid" | "void" }> {
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("charges")
+    .insert({
+      customer_id: input.customerId,
+      series_booking_id: input.seriesBookingId,
+      kind: "series",
+      label: input.label,
+      sessions_count: input.sessionsCount,
+      amount_cents: input.amountCents,
+      due_date: input.dueDate,
+      status: "open",
+      created_by: "system",
+    })
+    .select("id, status")
+    .single();
+
+  if (!error && data) {
+    const row = data as { id: string; status: "open" | "paid" | "void" };
+    return { id: row.id, created: true, status: row.status };
+  }
+
+  if (error && isUniqueViolation(error)) {
+    const { data: existing } = await admin
+      .from("charges")
+      .select("id, status")
+      .eq("series_booking_id", input.seriesBookingId)
+      .neq("status", "void")
+      .limit(1)
+      .maybeSingle();
+    const row = existing as { id: string; status: "open" | "paid" | "void" } | null;
+    if (row) {
+      return { id: row.id, created: false, status: row.status };
+    }
+  }
+
+  throw new Error("Nie udało się wystawić należności za kurs.");
+}

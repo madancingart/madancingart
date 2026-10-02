@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { CourseCards } from "@/components/schedule/CourseCards";
 import { ScheduleLegend } from "@/components/schedule/ScheduleLegend";
 import { ScheduleLocationTabs } from "@/components/schedule/ScheduleLocationTabs";
 import { WeekCalendar } from "@/components/schedule/WeekCalendar";
@@ -6,6 +7,7 @@ import { Container } from "@/components/ui/Container";
 import { Reveal } from "@/components/ui/Reveal";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { nowInWarsaw } from "@/lib/datetime";
+import { getPublishedCourseCards } from "@/lib/courses/catalog";
 import { getSchedule } from "@/lib/schedule/get-schedule";
 import { hasSupabaseEnv } from "@/lib/supabase/env";
 import type { LocationId } from "@/content/site";
@@ -29,7 +31,9 @@ function resolveLocation(value: string | undefined): LocationId {
 export default async function GrafikPage({ searchParams }: GrafikPageProps) {
   const params = await searchParams;
   const locationId = resolveLocation(params.lokalizacja);
-  const schedule = hasSupabaseEnv() ? await getSchedule() : null;
+  const [schedule, courses] = hasSupabaseEnv()
+    ? await Promise.all([getSchedule(), getPublishedCourseCards()])
+    : [null, []];
   const nowIso = nowInWarsaw().toISOString();
 
   const classes =
@@ -79,6 +83,10 @@ export default async function GrafikPage({ searchParams }: GrafikPageProps) {
         </ol>
 
         <ScheduleLocationTabs active={locationId} />
+
+        <div className="mt-8">
+          <CourseCards courses={courses} locationId={locationId} />
+        </div>
 
         <div className="mt-8">
           {schedule ? (
