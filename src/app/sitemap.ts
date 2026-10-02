@@ -15,6 +15,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "/zespol",
     "/galeria",
     "/o-nas",
+    "/kontakt",
+    "/polityka-prywatnosci",
+    "/regulamin",
     "/pierwszy-taniec/pakiety",
   ];
 

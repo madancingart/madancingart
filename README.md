@@ -161,6 +161,20 @@ W SQL (dashboard) weź `confirm_token` z przyszłego, nieanulowanego zapisu na s
 
 Status opłacenia członka grupy (`src/lib/membership-status.ts`) liczy zużycie karnetu `pass_4` / `pass_8` z tabeli `attendance` (obecność z `package_id`). Dziennik: `/admin/ewidencja`. Raport: `/admin/ewidencja/raport`.
 
+### Konta, należności, kursy (Etap 3)
+
+`0011_accounts_billing.sql` to schemat kont, zapisów stałych, należności i kursów. `0012_revoke_default_function_grants.sql` zdejmuje `EXECUTE`, które Supabase nadaje nowym funkcjom w `public` rolom `anon` i `authenticated`. Bez tego `REVOKE FROM public` zostawia te role z prawem wywołania.
+
+Diagnoza rodzeństwa przed migracją (dziecko z więcej niż jednym imieniem w zapisach) zwróciła 0 wierszy, więc migracji rozdzielającej rodzeństwo nie ma.
+
+Testy na projekcie `zvlehrqgnrhfdepqprnl` (2026-10-02). Konta testowe usunięte po sprawdzeniu.
+
+- **anon:** `select` z `account_profiles`, `enrollments`, `charges`, `customers` → 0 wierszy. `rpc apply_charge_payment` i `my_participants` → `permission denied for function`.
+- **zalogowany klient:** `select` z `customers` → 0 wierszy (uczestników czyta przez `my_participants()`, tylko własnych). Widzi tylko własne `enrollments`, `charges` i `bookings`.
+- **klient A, `enroll_in_class` dla uczestnika klienta B** → `forbidden`.
+- **`create_booking` z `kind = class`** → `account_required`. Wiersz zapisu i klienta z tej próby nie zostaje w bazie.
+- **`apply_charge_payment` dwa razy na tej samej należności** → za drugim razem `already_paid`. `paid_until` po pierwszej wpłacie `2026-11-30`, po drugiej bez zmian.
+
 ## Stripe (płatności za zapis)
 
 Kwoty liczy wyłącznie serwer z `src/content/pricing.ts` (pełna kwota z cennika). Checkout jest hostowany przez Stripe; fulfillment idzie przez webhook `checkout.session.completed` (status `paid` + mail). Po 30 minutach bez płatności `checkout.session.expired` zwalnia termin.

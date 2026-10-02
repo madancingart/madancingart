@@ -282,3 +282,68 @@ export type PackagePurchaseValues = z.output<typeof packagePurchaseSchema>;
 export function songsToStored(songs: { title: string; artist: string }[]): string[] {
   return songs.map((song) => `${song.title} — ${song.artist}`);
 }
+
+export const CONTACT_TOPICS = [
+  "Pierwszy taniec",
+  "Zajęcia grupowe",
+  "Lekcje indywidualne",
+  "Pokazy",
+  "Kursy",
+  "Inne",
+] as const;
+
+export type ContactTopic = (typeof CONTACT_TOPICS)[number];
+
+function contactPhoneOk(value: string): boolean {
+  const digits = value.replace(/\D/g, "");
+  return digits.length >= 9 && digits.length <= 15;
+}
+
+export const contactFormSchema = z
+  .object({
+    name: z.string().trim().min(2, "Podaj imię (co najmniej 2 znaki)."),
+    phone: z.string().trim().default(""),
+    email: z.string().trim().default(""),
+    topic: z.enum(CONTACT_TOPICS, { error: "Wybierz temat." }),
+    message: z
+      .string()
+      .trim()
+      .min(1, "Napisz wiadomość.")
+      .max(1000, "Wiadomość może mieć maksymalnie 1000 znaków."),
+    consentRodo: z.boolean().refine((value) => value === true, {
+      error: "Zgoda na przetwarzanie danych jest wymagana.",
+    }),
+    website: z.string().optional(),
+  })
+  .superRefine((data, ctx) => {
+    const hasPhone = data.phone.length > 0;
+    const hasEmail = data.email.length > 0;
+
+    if (!hasPhone && !hasEmail) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["phone"],
+        message: "Podaj telefon albo e-mail.",
+      });
+      return;
+    }
+
+    if (hasPhone && !contactPhoneOk(data.phone)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["phone"],
+        message: "Podaj numer telefonu (9–15 cyfr, możesz wpisać +48).",
+      });
+    }
+
+    if (hasEmail && !z.email().safeParse(data.email).success) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["email"],
+        message: "Podaj poprawny adres e-mail.",
+      });
+    }
+  });
+
+export type ContactFormInput = z.input<typeof contactFormSchema>;
+export type ContactFormValues = z.output<typeof contactFormSchema>;

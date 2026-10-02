@@ -3,10 +3,11 @@ import type { StaticImageData } from "next/image";
 import Image from "next/image";
 import salaHero from "@/assets/gallery/sale/mikolow-sala.jpg";
 import lubliniecImage from "@/assets/gallery/lubliniec.jpg";
-import mikolowImage from "@/assets/gallery/mikolow.jpg";
+import mikolowImage from "@/assets/gallery/sale/mikolow-parkiet.jpg";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Container } from "@/components/ui/Container";
+import { HeroTopScrim } from "@/components/ui/HeroTopScrim";
 import { Reveal } from "@/components/ui/Reveal";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import {
@@ -45,7 +46,8 @@ export default function AboutPage() {
           className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-black/20"
           aria-hidden
         />
-        <Container className="relative flex min-h-[50svh] flex-col justify-end pb-12 pt-28">
+        <HeroTopScrim />
+        <Container className="relative z-[2] flex min-h-[50svh] flex-col justify-end pb-12 pt-28">
           <span className="mb-3 block font-script text-4xl text-gold md:text-5xl">
             Nasza historia
           </span>

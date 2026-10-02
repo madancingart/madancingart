@@ -27,6 +27,9 @@ export function kindLabel(kind: BookingKind): string {
   if (kind === "event") {
     return "wydarzenie";
   }
+  if (kind === "series") {
+    return "kurs";
+  }
   return "grupa";
 }
 

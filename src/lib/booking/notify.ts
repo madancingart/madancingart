@@ -51,6 +51,10 @@ export async function notifyBookingById(bookingId: string): Promise<void> {
   const rawCustomer = row.customers;
   const customer = Array.isArray(rawCustomer) ? rawCustomer[0] : rawCustomer;
 
+  if (row.kind === "series") {
+    return;
+  }
+
   const term = await resolveBookingTerm(supabase, {
     kind: row.kind,
     targetId,

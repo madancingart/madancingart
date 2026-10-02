@@ -18,6 +18,7 @@ import salaImg0694 from "@/assets/gallery/sale/img-0694.jpg";
 import salaLubliniec from "@/assets/gallery/sale/lubliniec.jpg";
 import salaMikolowElewacja from "@/assets/gallery/sale/mikolow-elewacja.jpg";
 import salaMikolow from "@/assets/gallery/sale/mikolow-sala.jpg";
+import salaMikolowParkiet from "@/assets/gallery/sale/mikolow-parkiet.jpg";
 import turniejImg0698 from "@/assets/gallery/turnieje/img-0698.jpg";
 import turniejImg0699 from "@/assets/gallery/turnieje/img-0699.jpg";
 import turniejImg1946 from "@/assets/gallery/turnieje/img-1946.jpg";
@@ -26,12 +27,17 @@ import turniejImg4567 from "@/assets/gallery/turnieje/img-4567.jpg";
 import turniejImg4569 from "@/assets/gallery/turnieje/img-4569.jpg";
 import turniejMikolaj1 from "@/assets/gallery/turnieje/mikolaj-turniej-1.jpg";
 import turniejMikolaj2 from "@/assets/gallery/turnieje/mikolaj-turniej-2.jpg";
+import turniejOlaMikolaj from "@/assets/gallery/turnieje/ola-mikolaj.jpg";
 import zajeciaDzieci from "@/assets/gallery/zajecia/dzieci.jpg";
 import zajeciaLatino from "@/assets/gallery/zajecia/latino-solo.jpg";
 import zajeciaLatino2 from "@/assets/gallery/zajecia/latino-solo-2.jpg";
 import zajeciaLatino3 from "@/assets/gallery/zajecia/latino-solo-3.jpg";
+import zajeciaLatino4 from "@/assets/gallery/zajecia/latino-solo-4.jpg";
+import zajeciaLatino5 from "@/assets/gallery/zajecia/latino-solo-5.jpg";
+import zajeciaLatino6 from "@/assets/gallery/zajecia/latino-solo-6.jpg";
 import zajeciaUzytkowy1 from "@/assets/gallery/zajecia/taniec-uzytkowy-1.jpg";
 import zajeciaUzytkowy2 from "@/assets/gallery/zajecia/taniec-uzytkowy-2.jpg";
+import zajeciaUzytkowy3 from "@/assets/gallery/zajecia/taniec-uzytkowy-3.jpg";
 
 export const GALLERY_CATEGORIES = [
   { id: "turnieje", label: "Turnieje" },
@@ -104,6 +110,12 @@ export const turnieje: GalleryImage[] = [
     alt: "Tancerka latino w pomarańczowym stroju na parkiecie turniejowym",
     category: "turnieje",
   },
+  {
+    id: "turnieje-ola-mikolaj",
+    src: turniejOlaMikolaj,
+    alt: "Aleksandra Janosz i Mikołaj Mazur — para latino w czerwonej sukni",
+    category: "turnieje",
+  },
 ];
 
 export const zajecia: GalleryImage[] = [
@@ -143,6 +155,30 @@ export const zajecia: GalleryImage[] = [
     alt: "Uczestnicy zajęć tańca użytkowego na imprezie tanecznej",
     category: "zajecia",
   },
+  {
+    id: "zajecia-uzytkowy-3",
+    src: zajeciaUzytkowy3,
+    alt: "Para w tańcu użytkowym na imprezie — prowadzenie w pomarańczowej sukience",
+    category: "zajecia",
+  },
+  {
+    id: "zajecia-latino-solo-4",
+    src: zajeciaLatino4,
+    alt: "Para latino solo na turnieju — tancerka w różowej sukni z frędzlami",
+    category: "zajecia",
+  },
+  {
+    id: "zajecia-latino-solo-5",
+    src: zajeciaLatino5,
+    alt: "Tancerka latino solo w pomarańczowej sukni z piórami",
+    category: "zajecia",
+  },
+  {
+    id: "zajecia-latino-solo-6",
+    src: zajeciaLatino6,
+    alt: "Tancerka latino solo w niebieskiej sukni z frędzlami na parkiecie",
+    category: "zajecia",
+  },
 ];
 
 export const sale: GalleryImage[] = [
@@ -150,6 +186,12 @@ export const sale: GalleryImage[] = [
     id: "sale-mikolow-sala",
     src: salaMikolow,
     alt: "Sala taneczna M&A Dancing Art w Mikołowie — parkiet, lustra i światło",
+    category: "sale",
+  },
+  {
+    id: "sale-mikolow-parkiet",
+    src: salaMikolowParkiet,
+    alt: "Parkiet sali w Mikołowie — lustra, plakaty i światło nad podłogą",
     category: "sale",
   },
   {

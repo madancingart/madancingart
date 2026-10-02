@@ -27,6 +27,16 @@
   --color-muted: var(--muted);
   --font-sans: var(--font-arima);
   --font-script: var(--font-great-vibes);
+  --animate-menu-fade: menu-fade 200ms ease-out;
+}
+
+@keyframes menu-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 html {

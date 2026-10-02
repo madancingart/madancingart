@@ -34,6 +34,8 @@ alwaysApply: true
 - Dostępność: `focus-visible` widoczny (złoty ring), kontrast min. AA, `aria-label` na ikonach-przyciskach
 - Mobile-first; nawigacja i kalendarz MUSZĄ działać na 360px szerokości
 - Żadnych `any`; żadnych `console.log` w commitach; komponenty małe i nazwane
+- Nakładki fixed (menu, modale, lightbox) zawsze przez portal do body.
+- Tailwind v4: zmienne CSS w klasach jako `bg-(--token)`, nigdy `bg-[--token]`.
 
 ## Bezpieczeństwo (krytyczne)
 

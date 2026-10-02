@@ -7,6 +7,7 @@ import { Reveal } from "@/components/ui/Reveal";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { nowInWarsaw } from "@/lib/datetime";
 import { getSchedule } from "@/lib/schedule/get-schedule";
+import { hasSupabaseEnv } from "@/lib/supabase/env";
 import type { LocationId } from "@/content/site";
 
 export const revalidate = 60;
@@ -28,7 +29,7 @@ function resolveLocation(value: string | undefined): LocationId {
 export default async function GrafikPage({ searchParams }: GrafikPageProps) {
   const params = await searchParams;
   const locationId = resolveLocation(params.lokalizacja);
-  const schedule = await getSchedule();
+  const schedule = hasSupabaseEnv() ? await getSchedule() : null;
   const nowIso = nowInWarsaw().toISOString();
 
   const classes =

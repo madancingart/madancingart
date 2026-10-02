@@ -581,3 +581,80 @@ export async function sendClassSessionCancelledEmails(input: {
   }
   return sent;
 }
+
+export type ContactEmailInput = {
+  name: string;
+  phone: string;
+  email: string;
+  topic: string;
+  message: string;
+};
+
+function contactSchoolHtml(input: ContactEmailInput): string {
+  return wrap(`
+    <p style="margin:0 0 4px;color:#C9962E;font-size:13px;letter-spacing:0.12em;">FORMULARZ KONTAKTU</p>
+    <h1 style="margin:0 0 20px;font-size:22px;color:#F5EFE4;">${escapeHtml(input.topic)}</h1>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+      ${cell("Imię", input.name)}
+      ${cell("Telefon", input.phone || "—")}
+      ${cell("E-mail", input.email || "—")}
+      ${cell("Temat", input.topic)}
+      ${cell("Wiadomość", input.message)}
+    </table>
+  `);
+}
+
+function contactClientHtml(input: ContactEmailInput): string {
+  return wrap(`
+    <p style="margin:0 0 4px;color:#C9962E;font-size:13px;letter-spacing:0.12em;">M&amp;A DANCING ART</p>
+    <h1 style="margin:0 0 20px;font-size:22px;color:#F5EFE4;">Dostaliśmy wiadomość</h1>
+    <p style="margin:0 0 16px;color:#F5EFE4;line-height:1.5;">
+      Cześć ${escapeHtml(input.name)}, odezwiemy się w sprawie: ${escapeHtml(input.topic)}.
+    </p>
+    <p style="margin:0;color:#F5EFE4;line-height:1.5;">
+      Jeśli to pilne, zadzwoń:
+      <a href="tel:+48539143200" style="color:#C9962E;">${escapeHtml(site.phone)}</a>
+    </p>
+  `);
+}
+
+export async function sendContactEmails(
+  input: ContactEmailInput,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    console.error("Brak RESEND_API_KEY — nie wysyłam formularza kontaktowego.");
+    return {
+      ok: false,
+      error: "Wysyłka maili jest chwilowo niedostępna.",
+    };
+  }
+
+  const resend = new Resend(apiKey);
+  const school = await resend.emails.send({
+    from: FROM,
+    to: site.email,
+    replyTo: input.email || undefined,
+    subject: `Kontakt: ${input.topic} — ${input.name}`,
+    html: contactSchoolHtml(input),
+  });
+
+  if (school.error) {
+    console.error("Resend odrzucił wiadomość kontaktową.", school.error);
+    return { ok: false, error: "Nie udało się wysłać wiadomości." };
+  }
+
+  if (input.email) {
+    const client = await resend.emails.send({
+      from: FROM,
+      to: input.email,
+      subject: "Dostaliśmy Twoją wiadomość — M&A Dancing Art",
+      html: contactClientHtml(input),
+    });
+    if (client.error) {
+      console.error("Resend odrzucił potwierdzenie dla klienta.", client.error);
+    }
+  }
+
+  return { ok: true };
+}

@@ -1,6 +1,6 @@
 export type LocationId = "mikolow" | "lubliniec";
 
-export type BookingKind = "slot" | "class" | "event";
+export type BookingKind = "slot" | "class" | "event" | "series";
 export type SlotStatus = "open" | "booked" | "blocked";
 export type BookingStatus = "pending" | "confirmed" | "cancelled";
 export type PaymentOption = "onsite" | "reservation" | "full";
@@ -33,6 +33,7 @@ export type RecurringClassRow = {
   signup_open: boolean;
   active: boolean;
   trainer_id: string | null;
+  price_item_id: string | null;
 };
 
 export type SlotRow = {
@@ -56,6 +57,8 @@ export type EventRow = {
   capacity: number | null;
   signup_open: boolean;
   published: boolean;
+  series_id: string | null;
+  session_no: number | null;
 };
 
 export type BookingRow = {
@@ -64,6 +67,7 @@ export type BookingRow = {
   slot_id: string | null;
   recurring_class_id: string | null;
   event_id: string | null;
+  series_id: string | null;
   first_name: string;
   last_name: string | null;
   phone: string | null;
@@ -122,6 +126,7 @@ export type CustomerRow = {
   phone_norm: string;
   email: string | null;
   notes: string | null;
+  owner_user_id: string | null;
   created_at: string;
 };
 
@@ -154,7 +159,8 @@ export type ClassSessionRow = {
 
 export type AttendanceRow = {
   id: string;
-  class_session_id: string;
+  class_session_id: string | null;
+  event_id: string | null;
   customer_id: string;
   present: boolean;
   package_id: string | null;
@@ -196,6 +202,106 @@ export type ClassOccupancyRow = {
   capacity: number;
 };
 
+export type SeriesOccupancyRow = {
+  series_id: string;
+  taken: number;
+  capacity: number | null;
+};
+
+export type AccountProfileRow = {
+  user_id: string;
+  first_name: string;
+  last_name: string;
+  phone: string;
+  interests: string[];
+  terms_accepted_at: string;
+  created_at: string;
+};
+
+export type EnrollmentStatus = "pending" | "active" | "paused" | "ended" | "lapsed";
+export type EnrollmentBillingMode = "monthly" | "pass4";
+export type EnrollmentSource = "online" | "admin" | "import" | "legacy";
+
+export type EnrollmentRow = {
+  id: string;
+  customer_id: string;
+  recurring_class_id: string;
+  status: EnrollmentStatus;
+  billing_mode: EnrollmentBillingMode;
+  started_on: string;
+  billing_start: string;
+  paid_until: string | null;
+  paused_from: string | null;
+  paused_until: string | null;
+  ended_on: string | null;
+  hold_expires_at: string | null;
+  source: EnrollmentSource;
+  created_at: string;
+};
+
+export type ChargeKind =
+  | "first"
+  | "monthly"
+  | "prepaid"
+  | "pass4"
+  | "series"
+  | "skip"
+  | "manual";
+export type ChargeStatus = "open" | "paid" | "void";
+export type ChargePaymentMethod = "stripe" | "onsite" | "transfer" | "legacy";
+
+export type ChargeRow = {
+  id: string;
+  customer_id: string;
+  enrollment_id: string | null;
+  series_booking_id: string | null;
+  kind: ChargeKind;
+  label: string;
+  period_start: string | null;
+  period_end: string | null;
+  sessions_count: number | null;
+  amount_cents: number;
+  due_date: string;
+  status: ChargeStatus;
+  paid_at: string | null;
+  payment_method: ChargePaymentMethod | null;
+  stripe_checkout_session_id: string | null;
+  pay_token: string;
+  reminder_stage: number;
+  last_reminded_at: string | null;
+  note: string | null;
+  void_reason: string | null;
+  created_by: string;
+  created_at: string;
+};
+
+export type EventSeriesRow = {
+  id: string;
+  slug: string;
+  title: string;
+  description: string | null;
+  location_id: string | null;
+  trainer_id: string | null;
+  capacity: number | null;
+  price_cents: number;
+  allow_single: boolean;
+  single_price_cents: number | null;
+  signup_open: boolean;
+  published: boolean;
+  created_at: string;
+};
+
+export type MyParticipantRow = {
+  id: string;
+  kind: CustomerKind;
+  first_name: string;
+  last_name: string;
+  partner_first_name: string | null;
+  partner_last_name: string | null;
+  phone: string | null;
+  email: string | null;
+};
+
 export type CreateBookingArgs = {
   p_kind: BookingKind;
   p_target_id: string;
@@ -212,4 +318,65 @@ export type CreateBookingArgs = {
   p_guardian_name?: string | null;
   p_guardian_phone?: string | null;
   p_customer_kind?: CustomerKind;
+};
+
+export type UpsertMyProfileArgs = {
+  p_first_name: string;
+  p_last_name: string;
+  p_phone: string;
+  p_interests?: string[];
+};
+
+export type AddParticipantArgs = {
+  p_kind: CustomerKind;
+  p_first_name: string;
+  p_last_name: string;
+  p_partner_first_name?: string | null;
+  p_partner_last_name?: string | null;
+};
+
+export type UpdateMyParticipantArgs = {
+  p_id: string;
+  p_first_name: string;
+  p_last_name: string;
+  p_partner_first_name?: string | null;
+  p_partner_last_name?: string | null;
+};
+
+export type EnrollInClassArgs = {
+  p_customer_id: string;
+  p_class_id: string;
+};
+
+export type EnrollInClassResult = {
+  enrollment_id: string;
+  is_new: boolean;
+};
+
+export type EnrollInSeriesArgs = {
+  p_customer_id: string;
+  p_series_id: string;
+};
+
+export type EnrollInSeriesResult = {
+  booking_id: string;
+  is_new: boolean;
+};
+
+export type ApplyChargePaymentArgs = {
+  p_charge_id: string;
+  p_method: ChargePaymentMethod;
+  p_stripe_session_id?: string | null;
+};
+
+export type FindOrCreateCustomerArgs = {
+  p_first_name: string;
+  p_last_name: string;
+  p_phone: string;
+  p_email: string;
+  p_kind?: CustomerKind;
+  p_partner_first_name?: string | null;
+  p_partner_last_name?: string | null;
+  p_guardian_name?: string | null;
+  p_guardian_phone?: string | null;
 };

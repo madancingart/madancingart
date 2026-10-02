@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "images": "node scripts/optimize-images.mjs"
+    "check:links": "node scripts/check-links.mjs",
+    "images": "node scripts/optimize-images.mjs",
+    "video": "node scripts/video.mjs"
   },
   "dependencies": {
     "@date-fns/tz": "^1.5.0",

@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
 import Image from "next/image";
+import { VideoFeature } from "@/components/video/VideoFeature";
 import { Container } from "@/components/ui/Container";
 import { GoldDivider } from "@/components/ui/GoldDivider";
 import { Reveal } from "@/components/ui/Reveal";
 import { SectionHeading } from "@/components/ui/SectionHeading";
+import { trenerzy } from "@/content/videos";
 import { cn } from "@/lib/cn";
+import { videoObjectJsonLd } from "@/lib/schema";
 import { teamMembers } from "@/content/team";
 
 export const metadata: Metadata = {
@@ -14,8 +17,14 @@ export const metadata: Metadata = {
 };
 
 export default function TeamPage() {
+  const jsonLd = JSON.stringify(videoObjectJsonLd(trenerzy));
+
   return (
     <section className="py-20 md:py-28">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: jsonLd }}
+      />
       <Container>
         <SectionHeading
           script="Poznaj nas"
@@ -23,6 +32,16 @@ export default function TeamPage() {
           titleAs="h1"
           className="mb-16 md:mb-24"
         />
+
+        <div className="mx-auto mb-16 max-w-3xl md:mb-24">
+          <SectionHeading
+            script="Zobacz nas w tańcu"
+            title="Aleksandra Janosz i Mikołaj Mazur"
+            sub="Stały duet od 2019 roku, oboje z międzynarodową klasą S w tańcach latynoamerykańskich."
+            className="mb-8"
+          />
+          <VideoFeature video={trenerzy} />
+        </div>
 
         {teamMembers.map((member, index) => {
           const photo = member.photos[0];

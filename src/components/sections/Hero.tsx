@@ -3,6 +3,7 @@ import Image from "next/image";
 import heroImage from "@/assets/gallery/turnieje/img-0699.jpg";
 import { Button } from "@/components/ui/Button";
 import { Container } from "@/components/ui/Container";
+import { HeroTopScrim } from "@/components/ui/HeroTopScrim";
 import { Reveal } from "@/components/ui/Reveal";
 
 export function Hero() {
@@ -10,7 +11,7 @@ export function Hero() {
     <section className="relative -mt-16 h-[100svh] min-h-[560px]">
       <Image
         src={heroImage}
-        alt="Aleksandra Janosz w zielonej sukni na parkiecie turniejowym"
+        alt="Aleksandra Janosz i Mikołaj Mazur w tańcu latynoamerykańskim na parkiecie turniejowym"
         fill
         priority
         fetchPriority="high"
@@ -23,8 +24,9 @@ export function Hero() {
         className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/90 from-10% via-black/40 to-transparent"
         aria-hidden
       />
+      <HeroTopScrim />
 
-      <Container className="relative flex h-full flex-col justify-end pb-24 pt-28">
+      <Container className="relative z-[2] flex h-full flex-col justify-end pb-24 pt-28">
         <Reveal className="max-w-2xl" onMount>
           <span className="mb-3 block font-script text-4xl text-gold md:text-5xl">
             Taniec to coś więcej niż kroki

@@ -1,8 +1,10 @@
 import Image from "next/image";
 import Link from "next/link";
+import { AmbientLoop } from "@/components/video/AmbientLoop";
 import { Container } from "@/components/ui/Container";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { teamMembers } from "@/content/team";
+import { teamAmbientLoop } from "@/content/videos";
 import { cn } from "@/lib/cn";
 
 export function TeamTeaser() {
@@ -14,6 +16,13 @@ export function TeamTeaser() {
           title="Poznaj nasze twarze"
           className="mb-12"
         />
+        <div className="mx-auto mb-12 max-w-3xl">
+          <AmbientLoop
+            src={teamAmbientLoop.src}
+            poster={teamAmbientLoop.poster}
+            label={teamAmbientLoop.label}
+          />
+        </div>
         <ul className="grid gap-8 sm:grid-cols-3">
           {teamMembers.map((person) => {
             const photo = person.photos[0];

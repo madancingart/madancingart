@@ -1,7 +1,7 @@
 import type { StaticImageData } from "next/image";
 import Image from "next/image";
 import lubliniecImage from "@/assets/gallery/lubliniec.jpg";
-import mikolowImage from "@/assets/gallery/mikolow.jpg";
+import mikolowImage from "@/assets/gallery/sale/mikolow-parkiet.jpg";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Container } from "@/components/ui/Container";
