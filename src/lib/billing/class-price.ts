@@ -1,20 +1,22 @@
 import "server-only";
 
-import { findPriceItem, type LocatedPriceItem } from "@/content/pricing";
+import type { LocatedPriceItem } from "@/content/pricing";
 import type { BillingClass } from "@/lib/billing/engine";
+import { resolvePriceItem } from "@/lib/pricing/db";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export type BillableClass = {
   cls: BillingClass;
   priceItem: LocatedPriceItem | null;
   cancelledDates: string[];
+  freeSignup: boolean;
 };
 
 export async function loadBillableClass(classId: string): Promise<BillableClass | null> {
   const admin = createAdminClient();
   const { data } = await admin
     .from("recurring_classes")
-    .select("weekday, start_time, price_item_id, active")
+    .select("weekday, start_time, price_item_id, active, free_signup")
     .eq("id", classId)
     .maybeSingle();
   const row = data as {
@@ -22,6 +24,7 @@ export async function loadBillableClass(classId: string): Promise<BillableClass 
     start_time: string;
     price_item_id: string | null;
     active: boolean;
+    free_signup: boolean;
   } | null;
   if (!row?.active) {
     return null;
@@ -35,9 +38,10 @@ export async function loadBillableClass(classId: string): Promise<BillableClass 
 
   return {
     cls: { weekday: row.weekday, startTime: row.start_time.slice(0, 5) },
-    priceItem: row.price_item_id ? findPriceItem(row.price_item_id) : null,
+    priceItem: row.price_item_id ? await resolvePriceItem(row.price_item_id) : null,
     cancelledDates: ((cancelled ?? []) as { session_date: string }[]).map((item) =>
       item.session_date.slice(0, 10),
     ),
+    freeSignup: Boolean(row.free_signup),
   };
 }

@@ -15,7 +15,8 @@ import {
   voidOpenCharge,
   type MoneyResult,
 } from "@/lib/billing/admin-money";
-import { enrollmentBillingMode, findPriceItem } from "@/content/pricing";
+import { enrollmentBillingMode } from "@/content/pricing";
+import { resolvePriceItem } from "@/lib/pricing/db";
 import { assignGroupCodes } from "@/lib/billing/group-code";
 import {
   previewImportRows,
@@ -97,6 +98,48 @@ export async function voidChargeAction(input: unknown): Promise<BillingActionRes
     revalidateBilling();
   }
   return result;
+}
+
+/** Anuluje wszystkie otwarte należności tej osoby — znika z listy rozliczeń. */
+export async function removePayerAction(input: unknown): Promise<BillingActionResult> {
+  const { supabase } = await requireAdmin();
+  const parsed = z
+    .object({
+      customerId: z.uuid(),
+      reason: z.string().trim().min(1).max(300).optional(),
+    })
+    .safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: "Niepoprawny klient." };
+  }
+  const reason = parsed.data.reason?.trim() || "Usunięcie z rozliczeń";
+
+  const { data: open } = await supabase
+    .from("charges")
+    .select("id")
+    .eq("customer_id", parsed.data.customerId)
+    .eq("status", "open");
+
+  const ids = ((open ?? []) as { id: string }[]).map((row) => row.id);
+  if (ids.length === 0) {
+    return { ok: false, error: "Brak otwartych należności do usunięcia." };
+  }
+
+  for (const chargeId of ids) {
+    const result = await voidOpenCharge({
+      chargeId,
+      reason,
+    });
+    if (!result.ok) {
+      return result;
+    }
+  }
+
+  revalidateBilling(parsed.data.customerId);
+  return {
+    ok: true,
+    message: `Anulowano ${ids.length} należności — osoba znika z otwartych rozliczeń.`,
+  };
 }
 
 export async function changeDueAction(input: unknown): Promise<BillingActionResult> {
@@ -447,7 +490,7 @@ async function billingModeForClass(classId: string): Promise<"monthly" | "pass4"
     .eq("id", classId)
     .maybeSingle();
   const priceId = (data as { price_item_id: string | null } | null)?.price_item_id;
-  const item = priceId ? findPriceItem(priceId) : null;
+  const item = priceId ? await resolvePriceItem(priceId) : null;
   return (item && enrollmentBillingMode(item)) || "monthly";
 }
 
@@ -482,7 +525,9 @@ async function groupCatalog(): Promise<{
   const byCode = new Map<string, { id: string; billingMode: "monthly" | "pass4" }>();
   for (const row of rows) {
     const code = codes.get(row.id);
-    const item = row.price_item_id ? findPriceItem(row.price_item_id) : null;
+    const item = row.price_item_id
+      ? await resolvePriceItem(row.price_item_id)
+      : null;
     if (code) {
       byCode.set(code, {
         id: row.id,

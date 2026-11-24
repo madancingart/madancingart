@@ -7,11 +7,9 @@ import { Container } from "@/components/ui/Container";
 import { Reveal } from "@/components/ui/Reveal";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { cn } from "@/lib/cn";
-import {
-  isPromoSection,
-  pricing,
-} from "@/content/pricing";
+import { isPromoSection } from "@/content/pricing";
 import type { LocationId } from "@/content/site";
+import { pricingSectionsForLocation } from "@/lib/pricing/db";
 
 export const metadata: Metadata = {
   title: "Cennik — kursy tańca Mikołów i Lubliniec | M&A Dancing Art",
@@ -30,7 +28,7 @@ function resolveLocation(value: string | undefined): LocationId {
 export default async function CennikPage({ searchParams }: CennikPageProps) {
   const params = await searchParams;
   const locationId = resolveLocation(params.lokalizacja);
-  const sections = pricing[locationId];
+  const sections = await pricingSectionsForLocation(locationId);
 
   return (
     <section className="py-20 md:py-28">

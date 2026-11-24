@@ -46,6 +46,7 @@ function GroupDetailInner({ data }: { data: AdminGroupDetail }) {
     const result = await updateClassSettings({
       classId: data.id,
       signupOpen: data.signupOpen,
+      freeSignup: data.freeSignup,
       capacity: data.capacity,
       trainerId: data.trainerId ?? "",
       priceItemId,

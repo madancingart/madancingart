@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { enrollmentBillingMode } from "@/content/pricing";
 import { loadBillableClass } from "@/lib/billing/class-price";
 import { site } from "@/content/site";
-import { warsawNow } from "@/lib/billing/dates";
+import { addMonths, startOfMonth, warsawNow } from "@/lib/billing/dates";
 import {
   quoteFirst,
   quotePass,
@@ -49,15 +49,24 @@ export async function enrollInClass(input: {
   }
 
   const billable = await loadBillableClass(input.classId);
-  if (!billable || !billable.priceItem) {
+  if (!billable) {
+    return {
+      ok: false,
+      status: 409,
+      error: `Nie znaleziono grupy. Zadzwoń: ${site.phone}.`,
+    };
+  }
+  if (!billable.freeSignup && !billable.priceItem) {
     return {
       ok: false,
       status: 409,
       error: `Ta grupa nie ma jeszcze ceny. Zadzwoń: ${site.phone}.`,
     };
   }
-  const billingMode = enrollmentBillingMode(billable.priceItem);
-  if (!billingMode) {
+  const billingMode = billable.priceItem
+    ? enrollmentBillingMode(billable.priceItem)
+    : null;
+  if (!billable.freeSignup && !billingMode) {
     return {
       ok: false,
       status: 409,
@@ -84,10 +93,40 @@ export async function enrollInClass(input: {
   }
 
   const admin = createAdminClient();
-  await admin
-    .from("enrollments")
-    .update({ billing_mode: billingMode })
-    .eq("id", row.enrollment_id);
+  if (billingMode) {
+    await admin
+      .from("enrollments")
+      .update({ billing_mode: billingMode })
+      .eq("id", row.enrollment_id);
+  }
+
+  if (billable.freeSignup) {
+    const nextMonth = addMonths(startOfMonth(warsawNow().date), 1);
+    await admin
+      .from("enrollments")
+      .update({
+        status: "active",
+        hold_expires_at: null,
+        billing_start: nextMonth,
+      })
+      .eq("id", row.enrollment_id)
+      .eq("status", "pending");
+    revalidatePath("/grafik");
+    revalidatePath("/konto");
+    return {
+      ok: true,
+      skipped: true,
+      message: "Zapis przyjęty. Ta grupa nie wymaga płatności przy zapisie.",
+    };
+  }
+
+  if (!billable.priceItem || !billingMode) {
+    return {
+      ok: false,
+      status: 409,
+      error: `Ta grupa nie ma jeszcze ceny. Zadzwoń: ${site.phone}.`,
+    };
+  }
 
   const { data: enrollment } = await admin
     .from("enrollments")

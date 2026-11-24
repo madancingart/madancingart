@@ -1,6 +1,6 @@
 import "server-only";
 
-import { findPriceItem } from "@/content/pricing";
+import { resolvePriceItem } from "@/lib/pricing/db";
 import { quoteNextMonthly, type BillingQuote } from "@/lib/billing/engine";
 import {
   effectiveIssueOn,
@@ -113,7 +113,9 @@ async function loadReady(): Promise<{ ready: Ready[]; unpriced: number }> {
   let unpriced = 0;
   for (const enrollment of enrollments) {
     const cls = classes.get(enrollment.classId);
-    const price = cls?.priceItemId ? findPriceItem(cls.priceItemId) : null;
+    const price = cls?.priceItemId
+      ? await resolvePriceItem(cls.priceItemId)
+      : null;
     if (!cls || !price) {
       unpriced += 1;
       continue;

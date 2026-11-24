@@ -31,13 +31,17 @@ export function ClassPriceField({
   value,
   disabled,
   onChange,
+  items: itemsProp,
 }: {
   locationId: string;
   value: string | null;
   disabled?: boolean;
   onChange: (priceItemId: string) => void;
+  items?: LocatedPriceItem[];
 }) {
-  const items = isLocationId(locationId) ? priceItemsForLocation(locationId) : [];
+  const items =
+    itemsProp ??
+    (isLocationId(locationId) ? priceItemsForLocation(locationId) : []);
   const current = value ?? "";
 
   return (

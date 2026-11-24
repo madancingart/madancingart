@@ -50,7 +50,23 @@ export async function previewEnrollment(input: {
   }
 
   const billable = await loadBillableClass(input.classId);
-  if (!billable?.priceItem) {
+  if (!billable) {
+    return {
+      kind: "unavailable",
+      message: `Nie znaleziono grupy. Zadzwoń: ${site.phone}.`,
+    };
+  }
+  if (billable.freeSignup) {
+    return {
+      kind: "offer",
+      billing: "monthly",
+      periodSummary: "Zapis bez płatności — bez pierwszej należności.",
+      prepaidSummary: null,
+      prepaidChoice: null,
+      passChoice: null,
+    };
+  }
+  if (!billable.priceItem) {
     return {
       kind: "unavailable",
       message: `Ta grupa nie ma jeszcze ceny. Zadzwoń: ${site.phone}.`,

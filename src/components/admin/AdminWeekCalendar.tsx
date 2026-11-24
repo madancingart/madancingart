@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { addMinutes, differenceInMinutes, getISODay, isSameDay } from "date-fns";
 import { ChevronLeft, ChevronRight, Check } from "lucide-react";
+import { AddClassModal } from "@/components/admin/AddClassModal";
 import { AddSlotModal } from "@/components/admin/AddSlotModal";
 import { AddSlotSeriesModal } from "@/components/admin/AddSlotSeriesModal";
 import { CalendarDrawer } from "@/components/admin/CalendarDrawer";
@@ -86,6 +87,7 @@ function AdminWeekCalendarInner({
   const [addOpen, setAddOpen] = useState(openAddInitially);
   const [addStart, setAddStart] = useState<Date | null>(null);
   const [seriesOpen, setSeriesOpen] = useState(false);
+  const [classOpen, setClassOpen] = useState(false);
 
   const hourLabels = useMemo(() => {
     const labels: number[] = [];
@@ -108,7 +110,12 @@ function AdminWeekCalendarInner({
         : trainerFilter
           ? data.slots.filter((item) => item.trainerId === trainerFilter)
           : data.slots;
-    return { classes, slots, trainers: data.trainers };
+    return {
+      classes,
+      slots,
+      trainers: data.trainers,
+      classTypes: data.classTypes,
+    };
   }, [data, kindFilter, trainerFilter]);
 
   function weekHref(offset: number, nowy: "slot" | null = null): string {
@@ -232,6 +239,13 @@ function AdminWeekCalendarInner({
           >
             Dodaj serię terminów
           </button>
+          <button
+            type="button"
+            onClick={() => setClassOpen(true)}
+            className="min-h-11 border border-white/20 px-3 text-[13px] text-cream hover:border-gold hover:text-gold"
+          >
+            Dodaj stałe zajęcia
+          </button>
         </div>
       </div>
 
@@ -310,6 +324,22 @@ function AdminWeekCalendarInner({
 
       <AdminCalendarLegend />
 
+      <AddClassModal
+        open={classOpen}
+        locationId={locationId}
+        classTypes={data.classTypes}
+        trainers={data.trainers}
+        onClose={() => setClassOpen(false)}
+        onDone={(result) => {
+          if (result.ok) {
+            toast.push("ok", result.message ?? "Dodano grupę.");
+            router.refresh();
+          } else {
+            toast.push("err", result.error);
+          }
+        }}
+      />
+
       <CalendarDrawer
         open={Boolean(drawerTarget)}
         target={drawerTarget}
@@ -317,6 +347,7 @@ function AdminWeekCalendarInner({
           drawerId?.kind === "class" ? drawerId.dateIso : null
         }
         trainers={data.trainers}
+        classTypes={data.classTypes}
         onClose={() => setDrawerId(null)}
         onDone={handleResult}
       />

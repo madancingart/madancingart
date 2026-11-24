@@ -1,6 +1,7 @@
 import "server-only";
 
-import { findPriceItem, type LocatedPriceItem } from "@/content/pricing";
+import type { LocatedPriceItem } from "@/content/pricing";
+import { resolvePriceItem } from "@/lib/pricing/db";
 import type { BillingClass, BillingQuote } from "@/lib/billing/engine";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { EnrollmentBillingMode, EnrollmentStatus } from "@/lib/types";
@@ -89,7 +90,7 @@ export async function loadEnrollmentContext(
       startTime: danceClass.start_time.slice(0, 5),
     },
     priceItem: danceClass.price_item_id
-      ? findPriceItem(danceClass.price_item_id)
+      ? await resolvePriceItem(danceClass.price_item_id)
       : null,
     cancelledDates: (cancelled ?? []).map((item) =>
       String(item.session_date).slice(0, 10),

@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, CalendarDays, ClipboardCheck, ClipboardList, LogOut, Sparkles, Ticket, Users, Wallet } from "lucide-react";
+import { BookOpen, CalendarDays, ClipboardCheck, ClipboardList, LogOut, Sparkles, Tags, Ticket, Users, Wallet } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
@@ -24,6 +24,7 @@ const links: NavItem[] = [
   { href: "/admin/pakiety", label: "Pakiety", short: "Pakiety", icon: Ticket },
   { href: "/admin/eventy", label: "Eventy", short: "Eventy", icon: Sparkles },
   { href: "/admin/kursy", label: "Kursy", short: "Kursy", icon: BookOpen },
+  { href: "/admin/cennik", label: "Cennik", short: "Cennik", icon: Tags },
 ];
 
 function isActive(pathname: string, href: string, exact?: boolean) {

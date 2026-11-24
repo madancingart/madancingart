@@ -132,11 +132,11 @@ export async function getAdminCalendar(
     supabase
       .from("recurring_classes")
       .select(
-        "id,location_id,class_type_id,weekday,start_time,duration_min,level,capacity,signup_open,active,trainer_id,price_item_id",
+        "id,location_id,class_type_id,weekday,start_time,duration_min,level,capacity,signup_open,free_signup,active,trainer_id,price_item_id",
       )
       .eq("active", true)
       .eq("location_id", locationId),
-    supabase.from("class_types").select("id,slug,name,is_pair,color"),
+    supabase.from("class_types").select("id,slug,name,is_pair,color").order("name"),
     supabase
       .from("slots")
       .select(
@@ -223,6 +223,7 @@ export async function getAdminCalendar(
     return {
       id: row.id,
       locationId: row.location_id,
+      classTypeId: row.class_type_id,
       weekday: row.weekday,
       startTime: row.start_time,
       durationMin: row.duration_min,
@@ -230,6 +231,7 @@ export async function getAdminCalendar(
       slug: type?.slug ?? "",
       level: row.level,
       signupOpen: row.signup_open,
+      freeSignup: Boolean(row.free_signup),
       taken: seats.taken,
       capacity: row.capacity,
       trainerId: row.trainer_id,
@@ -255,5 +257,13 @@ export async function getAdminCalendar(
     asList(trainersResult.data as TrainerRow[] | null),
   );
 
-  return { classes, slots, trainers };
+  const classTypes = asList(typesResult.data as ClassTypeRow[] | null).map(
+    (type) => ({
+      id: type.id,
+      slug: type.slug,
+      name: type.name,
+    }),
+  );
+
+  return { classes, slots, trainers, classTypes };
 }
