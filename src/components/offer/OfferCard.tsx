@@ -2,6 +2,7 @@ import { ArrowRight } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { Card } from "@/components/ui/Card";
+import { cn } from "@/lib/cn";
 import type { OfferItem } from "@/content/offer";
 
 type OfferCardProps = {
@@ -18,7 +19,7 @@ export function OfferCard({ item }: OfferCardProps) {
             alt={`${item.name} — M&A Dancing Art`}
             fill
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-            className="object-cover"
+            className={cn("object-cover", item.imageClass)}
           />
         </div>
         <div className="flex items-end justify-between gap-3 p-5">

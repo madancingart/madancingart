@@ -72,7 +72,7 @@ export default function TeamPage() {
                         sizes="(max-width: 768px) 100vw, 50vw"
                         className={cn(
                           "object-cover",
-                          member.photoClass ?? "object-top",
+                          member.photoClass ?? "object-[center_18%]",
                         )}
                       />
                     </div>

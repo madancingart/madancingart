@@ -38,7 +38,7 @@ export function TeamTeaser() {
                       sizes="(max-width: 640px) 100vw, 33vw"
                       className={cn(
                         "object-cover",
-                        person.photoClass ?? "object-top",
+                        person.photoClass ?? "object-[center_18%]",
                       )}
                     />
                   </div>

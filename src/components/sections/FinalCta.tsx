@@ -1,5 +1,5 @@
 import Image from "next/image";
-import parkiet from "@/assets/hero/parkiet.jpg";
+import parkietCta from "@/assets/hero/parkiet-cta.jpg";
 import { Button } from "@/components/ui/Button";
 import { Container } from "@/components/ui/Container";
 
@@ -7,11 +7,11 @@ export function FinalCta() {
   return (
     <section className="relative min-h-[60svh] overflow-hidden py-28">
       <Image
-        src={parkiet}
-        alt="Parkiet taneczny podczas turnieju — para w strojach latino"
+        src={parkietCta}
+        alt="Aleksandra Janosz i Mikołaj Mazur podczas występu latino"
         fill
         sizes="100vw"
-        className="object-cover object-center"
+        className="object-cover object-[center_32%] sm:object-[center_38%] lg:object-[center_42%]"
       />
       <div
         className="absolute inset-0 bg-black/70"

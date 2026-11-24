@@ -32,6 +32,7 @@ export const teamMembers: TeamMember[] = [
       "Na treningach stawia na jakość, technikę i indywidualne podejście. Łączy wytrwałość i perfekcjonizm z pełnym zaangażowaniem — a do tego uśmiech i energię, dzięki którym dzieci, młodzież i dorośli czują się swobodnie.",
     ],
     photos: [aleksandra],
+    photoClass: "object-[center_16%]",
   },
   {
     slug: "mikolaj-mazur",
@@ -68,5 +69,6 @@ export const teamMembers: TeamMember[] = [
       "Wnosi na salę pozytywną energię i naturalną radość z ruchu. Łączy ambicję i dyscyplinę treningową z pozytywną atmosferą.",
     ],
     photos: [dagmara],
+    photoClass: "object-[center_18%]",
   },
 ];

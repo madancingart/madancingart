@@ -40,7 +40,7 @@ export default function AboutPage() {
           fill
           priority
           sizes="100vw"
-          className="object-cover"
+          className="object-cover object-[center_40%]"
         />
         <div
           className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-black/20"
@@ -128,7 +128,7 @@ export default function AboutPage() {
                     alt={`Sala taneczna M&A Dancing Art — ${location.city}, ${location.address}`}
                     fill
                     sizes="(max-width: 768px) 100vw, 50vw"
-                    className="object-cover"
+                    className="object-cover object-[center_42%]"
                   />
                 </div>
                 <div className="p-6 md:p-8">
