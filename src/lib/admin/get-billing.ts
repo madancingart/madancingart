@@ -197,7 +197,8 @@ async function loadCharges(supabase: SupabaseClient, today: string): Promise<Cha
     )
     .order("due_date", { ascending: true })
     .limit(800);
-  return ((data ?? []) as Record<string, unknown>[]).map((row) => {
+  const rows: ChargeListRow[] = [];
+  for (const row of (data ?? []) as Record<string, unknown>[]) {
     const customer = one(row.customers) as {
       first_name: string;
       last_name: string;
@@ -206,17 +207,36 @@ async function loadCharges(supabase: SupabaseClient, today: string): Promise<Cha
       partner_last_name: string | null;
       guardian_name: string | null;
     } | null;
+    if (customer?.first_name === "Usunięto") {
+      continue;
+    }
     const enrollment = one(row.enrollments) as {
       recurring_class_id: string;
-      recurring_classes: { location_id: string; class_types: { name: string } | { name: string }[] | null } | { location_id: string; class_types: { name: string } | { name: string }[] | null }[] | null;
+      recurring_classes:
+        | {
+            location_id: string;
+            class_types: { name: string } | { name: string }[] | null;
+          }
+        | {
+            location_id: string;
+            class_types: { name: string } | { name: string }[] | null;
+          }[]
+        | null;
     } | null;
     const cls = enrollment ? one(enrollment.recurring_classes) : null;
     const type = cls ? one(cls.class_types) : null;
     const dueDate = String(row.due_date).slice(0, 10);
     const status = row.status as "open" | "paid" | "void";
-    const periodStart = row.period_start ? String(row.period_start).slice(0, 10) : null;
+    const periodStart = row.period_start
+      ? String(row.period_start).slice(0, 10)
+      : null;
     const periodEnd = row.period_end ? String(row.period_end).slice(0, 10) : null;
-    return {
+    const locationRaw = cls?.location_id ?? null;
+    const locationId: LocationId | null =
+      locationRaw === "mikolow" || locationRaw === "lubliniec"
+        ? locationRaw
+        : null;
+    rows.push({
       id: String(row.id),
       customerId: String(row.customer_id),
       customerName: customer
@@ -231,7 +251,7 @@ async function loadCharges(supabase: SupabaseClient, today: string): Promise<Cha
         : "Uczestnik",
       className: type?.name ?? String(row.label),
       classId: enrollment?.recurring_class_id ?? null,
-      locationId: (cls?.location_id as LocationId | undefined) ?? null,
+      locationId,
       period: periodStart && periodEnd ? `${periodStart} – ${periodEnd}` : null,
       amountCents: Number(row.amount_cents),
       dueDate,
@@ -240,8 +260,9 @@ async function loadCharges(supabase: SupabaseClient, today: string): Promise<Cha
       reminderStage: Number(row.reminder_stage ?? 0),
       payToken: String(row.pay_token),
       pill: chargeStatusPill(status, dueDate, today),
-    };
-  });
+    });
+  }
+  return rows;
 }
 
 function one<T>(value: T | T[] | null | undefined): T | null {

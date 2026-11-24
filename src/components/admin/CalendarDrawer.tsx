@@ -7,7 +7,13 @@ import { ClassPriceField } from "@/components/admin/ClassPriceField";
 import { Button } from "@/components/ui/Button";
 import { telHref } from "@/lib/contact";
 import { formatDatePl, formatDateTimeWarsaw } from "@/lib/datetime";
-import type { AdminBooking, AdminClass, AdminSlot, AdminTrainer } from "@/lib/admin/calendar-types";
+import type {
+  AdminBooking,
+  AdminClass,
+  AdminClassType,
+  AdminSlot,
+  AdminTrainer,
+} from "@/lib/admin/calendar-types";
 import { GroupMembersList } from "@/components/admin/GroupMembersList";
 import { CustomerNameLink } from "@/components/admin/CustomerNameLink";
 import { TrainerSelect } from "@/components/admin/TrainerSelect";
@@ -21,6 +27,9 @@ import {
   markBookingConfirmedByPhone,
   resendConfirmationReminder,
   unblockSlot,
+  deactivateRecurringClass,
+  deleteRecurringClass,
+  saveRecurringClass,
   updateClassSettings,
   updateSlotTrainer,
 } from "@/app/admin/(app)/kalendarz/actions";
@@ -69,6 +78,7 @@ type CalendarDrawerProps = {
   target: { kind: "class"; item: AdminClass } | { kind: "slot"; item: AdminSlot } | null;
   sessionDateIso?: string | null;
   trainers: AdminTrainer[];
+  classTypes: AdminClassType[];
   onClose: () => void;
   onDone: (result: ActionResult, closeDrawer?: boolean) => void;
 };
@@ -78,6 +88,7 @@ export function CalendarDrawer({
   target,
   sessionDateIso = null,
   trainers,
+  classTypes,
   onClose,
   onDone,
 }: CalendarDrawerProps) {
@@ -158,12 +169,26 @@ export function CalendarDrawer({
                 item={target.item}
                 sessionDateIso={sessionDateIso}
                 trainers={trainers}
+                classTypes={classTypes}
                 pending={pending}
                 onToggleSignup={() =>
                   run(() =>
                     updateClassSettings({
                       classId: target.item.id,
                       signupOpen: !target.item.signupOpen,
+                      freeSignup: target.item.freeSignup,
+                      capacity: target.item.capacity,
+                      trainerId: target.item.trainerId ?? "",
+                      priceItemId: target.item.priceItemId ?? "",
+                    }),
+                  )
+                }
+                onToggleFreeSignup={() =>
+                  run(() =>
+                    updateClassSettings({
+                      classId: target.item.id,
+                      signupOpen: target.item.signupOpen,
+                      freeSignup: !target.item.freeSignup,
                       capacity: target.item.capacity,
                       trainerId: target.item.trainerId ?? "",
                       priceItemId: target.item.priceItemId ?? "",
@@ -175,6 +200,7 @@ export function CalendarDrawer({
                     updateClassSettings({
                       classId: target.item.id,
                       signupOpen: target.item.signupOpen,
+                      freeSignup: target.item.freeSignup,
                       capacity: nextCapacity,
                       trainerId: target.item.trainerId ?? "",
                       priceItemId: target.item.priceItemId ?? "",
@@ -186,6 +212,7 @@ export function CalendarDrawer({
                     updateClassSettings({
                       classId: target.item.id,
                       signupOpen: target.item.signupOpen,
+                      freeSignup: target.item.freeSignup,
                       capacity: target.item.capacity,
                       trainerId,
                       priceItemId: target.item.priceItemId ?? "",
@@ -197,11 +224,47 @@ export function CalendarDrawer({
                     updateClassSettings({
                       classId: target.item.id,
                       signupOpen: target.item.signupOpen,
+                      freeSignup: target.item.freeSignup,
                       capacity: target.item.capacity,
                       trainerId: target.item.trainerId ?? "",
                       priceItemId,
                     }),
                   )
+                }
+                onSaveSchedule={(payload) =>
+                  run(() =>
+                    saveRecurringClass({
+                      id: target.item.id,
+                      locationId: target.item.locationId,
+                      classTypeId: payload.classTypeId,
+                      weekday: payload.weekday,
+                      startTime: payload.startTime,
+                      durationMin: payload.durationMin,
+                      level: payload.level,
+                      capacity: target.item.capacity,
+                      signupOpen: target.item.signupOpen,
+                      freeSignup: target.item.freeSignup,
+                      active: true,
+                      trainerId: target.item.trainerId ?? "",
+                      priceItemId: target.item.priceItemId ?? "",
+                    }),
+                  )
+                }
+                onDeactivate={() =>
+                  setConfirm({
+                    title: "Wyłączyć grupę?",
+                    body: "Zniknie z publicznego grafiku. Zapisy w bazie zostają — możesz dodać nową grupę osobno.",
+                    confirmLabel: "Wyłącz grupę",
+                    run: () => deactivateRecurringClass({ classId: target.item.id }),
+                  })
+                }
+                onDelete={() =>
+                  setConfirm({
+                    title: "Usunąć grupę z grafiku?",
+                    body: "Tylko gdy nie ma aktywnych zapisów. Tej operacji nie da się cofnąć.",
+                    confirmLabel: "Usuń grupę",
+                    run: () => deleteRecurringClass({ classId: target.item.id }),
+                  })
                 }
                 onCancelOccurrenceDone={(message) => {
                   void run(async () => ({ ok: true, message }));
@@ -315,7 +378,9 @@ export function CalendarDrawer({
                       onClick={() => {
                         void run(
                           () => confirm.run(notifyClient),
-                          confirm.confirmLabel === "Usuń slot",
+                          confirm.confirmLabel === "Usuń slot" ||
+                            confirm.confirmLabel === "Usuń grupę" ||
+                            confirm.confirmLabel === "Wyłącz grupę",
                         );
                       }}
                     >
@@ -349,30 +414,67 @@ export function CalendarDrawer({
   );
 }
 
+const WEEKDAYS = [
+  { value: 1, label: "Poniedziałek" },
+  { value: 2, label: "Wtorek" },
+  { value: 3, label: "Środa" },
+  { value: 4, label: "Czwartek" },
+  { value: 5, label: "Piątek" },
+  { value: 6, label: "Sobota" },
+  { value: 7, label: "Niedziela" },
+];
+
 function ClassPanel({
   item,
   sessionDateIso,
   trainers,
+  classTypes,
   pending,
   onToggleSignup,
+  onToggleFreeSignup,
   onSaveCapacity,
   onSaveTrainer,
   onSavePrice,
+  onSaveSchedule,
+  onDeactivate,
+  onDelete,
   onCancelOccurrenceDone,
   onCancelOccurrenceError,
 }: {
   item: AdminClass;
   sessionDateIso: string | null;
   trainers: AdminTrainer[];
+  classTypes: AdminClassType[];
   pending: boolean;
   onToggleSignup: () => void;
+  onToggleFreeSignup: () => void;
   onSaveCapacity: (capacity: number) => void;
   onSaveTrainer: (trainerId: string) => void;
   onSavePrice: (priceItemId: string) => void;
+  onSaveSchedule: (payload: {
+    classTypeId: string;
+    weekday: number;
+    startTime: string;
+    durationMin: number;
+    level: string;
+  }) => void;
+  onDeactivate: () => void;
+  onDelete: () => void;
   onCancelOccurrenceDone: (message: string) => void;
   onCancelOccurrenceError: (message: string) => void;
 }) {
   const [capacity, setCapacity] = useState(item.capacity);
+  const [classTypeId, setClassTypeId] = useState(item.classTypeId);
+  const [weekday, setWeekday] = useState(item.weekday);
+  const [startTime, setStartTime] = useState(item.startTime.slice(0, 5));
+  const [durationMin, setDurationMin] = useState(item.durationMin);
+  const [level, setLevel] = useState(item.level ?? "");
+  const scheduleDirty =
+    classTypeId !== item.classTypeId ||
+    weekday !== item.weekday ||
+    startTime !== item.startTime.slice(0, 5) ||
+    durationMin !== item.durationMin ||
+    level !== (item.level ?? "");
   const cancelled =
     Boolean(sessionDateIso) && item.cancelledDates.includes(sessionDateIso ?? "");
   const journalHref = sessionDateIso
@@ -401,6 +503,87 @@ function ClassPanel({
         Dziennik zajęć
       </Link>
 
+      <div className="flex flex-col gap-3 border border-white/10 p-3">
+        <p className="text-[13px] font-semibold text-cream">Grafik stały</p>
+        <label className="text-[13px] text-muted">
+          Typ zajęć
+          <select
+            value={classTypeId}
+            onChange={(event) => setClassTypeId(event.target.value)}
+            className="mt-1 min-h-11 w-full border border-white/10 bg-black px-3 text-cream"
+          >
+            {classTypes.map((type) => (
+              <option key={type.id} value={type.id}>
+                {type.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="text-[13px] text-muted">
+          Dzień tygodnia
+          <select
+            value={weekday}
+            onChange={(event) => setWeekday(Number(event.target.value))}
+            className="mt-1 min-h-11 w-full border border-white/10 bg-black px-3 text-cream"
+          >
+            {WEEKDAYS.map((day) => (
+              <option key={day.value} value={day.value}>
+                {day.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <div className="grid grid-cols-2 gap-2">
+          <label className="text-[13px] text-muted">
+            Godzina
+            <input
+              type="time"
+              value={startTime}
+              onChange={(event) => setStartTime(event.target.value)}
+              className="mt-1 min-h-11 w-full border border-white/10 bg-black px-3 text-cream"
+            />
+          </label>
+          <label className="text-[13px] text-muted">
+            Czas (min)
+            <input
+              type="number"
+              min={15}
+              max={180}
+              value={durationMin}
+              onChange={(event) =>
+                setDurationMin(Number.parseInt(event.target.value, 10) || 60)
+              }
+              className="mt-1 min-h-11 w-full border border-white/10 bg-black px-3 text-cream"
+            />
+          </label>
+        </div>
+        <label className="text-[13px] text-muted">
+          Poziom
+          <input
+            value={level}
+            onChange={(event) => setLevel(event.target.value)}
+            className="mt-1 min-h-11 w-full border border-white/10 bg-black px-3 text-cream"
+          />
+        </label>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          disabled={pending || !scheduleDirty}
+          onClick={() =>
+            onSaveSchedule({
+              classTypeId,
+              weekday,
+              startTime,
+              durationMin,
+              level,
+            })
+          }
+        >
+          Zapisz grafik
+        </Button>
+      </div>
+
       <div className="flex flex-wrap items-center gap-2">
         <Button
           type="button"
@@ -411,8 +594,21 @@ function ClassPanel({
         >
           {item.signupOpen ? "Zapisy otwarte" : "Zapisy zamknięte"}
         </Button>
-        <p className="text-[12px] text-muted">Klik, aby przełączyć.</p>
+        <Button
+          type="button"
+          size="sm"
+          variant={item.freeSignup ? "outline" : "ghost"}
+          disabled={pending}
+          onClick={onToggleFreeSignup}
+        >
+          {item.freeSignup ? "Bez płatności" : "Z płatnością"}
+        </Button>
       </div>
+      {item.freeSignup ? (
+        <p className="text-[12px] text-muted">
+          Klienci zapisują się bez pierwszej należności (tak jak „bez płatności” przy dodawaniu z panelu).
+        </p>
+      ) : null}
 
       <label className="text-[13px] text-muted">
         Prowadzący
@@ -424,12 +620,14 @@ function ClassPanel({
         />
       </label>
 
-      <ClassPriceField
-        locationId={item.locationId}
-        value={item.priceItemId}
-        disabled={pending}
-        onChange={onSavePrice}
-      />
+      {!item.freeSignup ? (
+        <ClassPriceField
+          locationId={item.locationId}
+          value={item.priceItemId}
+          disabled={pending}
+          onChange={onSavePrice}
+        />
+      ) : null}
 
       <label className="text-[13px] text-muted">
         Pojemność
@@ -457,6 +655,15 @@ function ClassPanel({
       </label>
 
       <GroupMembersList classId={item.id} members={item.members} />
+
+      <div className="flex flex-wrap gap-2 border-t border-white/10 pt-4">
+        <Button type="button" size="sm" variant="outline" disabled={pending} onClick={onDeactivate}>
+          Wyłącz grupę
+        </Button>
+        <Button type="button" size="sm" variant="ghost" disabled={pending} onClick={onDelete}>
+          Usuń grupę
+        </Button>
+      </div>
     </div>
   );
 }

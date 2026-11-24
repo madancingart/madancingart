@@ -31,6 +31,7 @@ export type RecurringClassRow = {
   level: string | null;
   capacity: number;
   signup_open: boolean;
+  free_signup: boolean;
   active: boolean;
   trainer_id: string | null;
   price_item_id: string | null;

@@ -32,7 +32,8 @@ function CustomerFileInner({ data }: { data: CustomerFileData }) {
     setPending(false);
     setConfirm(false);
     if (result.ok) {
-      toast.push("ok", result.message ?? "Dane usunięte.");
+      toast.push("ok", result.message ?? "Klient usunięty z listy.");
+      router.push("/admin/klienci");
       router.refresh();
     } else {
       toast.push("err", result.error);
@@ -61,10 +62,10 @@ function CustomerFileInner({ data }: { data: CustomerFileData }) {
       <CustomerHistory items={data.history} />
 
       <section className="border border-white/10 bg-black-soft p-4">
-        <h2 className="text-[15px] font-semibold text-cream">RODO</h2>
+        <h2 className="text-[15px] font-semibold text-cream">Usuń klienta</h2>
         <p className="mt-2 text-[13px] text-muted">
-          Usuwa imię, nazwisko, telefon, e-mail, notatki i dane partnera lub
-          opiekuna. Rezerwacje zostają (zajętość), pakiety zostają z kwotami.
+          Kasuje dane osobowe (imię, telefon, e-mail itd.) i znika z zakładki
+          Klienci. Historia rozliczeń zostaje bez danych osobowych (RODO).
         </p>
         <Button
           type="button"
@@ -74,7 +75,7 @@ function CustomerFileInner({ data }: { data: CustomerFileData }) {
           disabled={pending || anonymized}
           onClick={() => setConfirm(true)}
         >
-          Usuń dane klienta
+          Usuń klienta
         </Button>
       </section>
 
@@ -82,11 +83,11 @@ function CustomerFileInner({ data }: { data: CustomerFileData }) {
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 p-4">
           <div className="w-[min(100%,24rem)] border border-white/10 bg-black-soft p-5">
             <h2 className="text-[16px] font-semibold text-cream">
-              Usunąć dane osobowe?
+              Usunąć klienta z listy?
             </h2>
             <p className="mt-2 text-[14px] text-muted">
-              Tej operacji nie da się cofnąć. Historia pakietów i wpłat
-              pozostanie bez danych kontaktowych.
+              Tej operacji nie da się cofnąć. Zniknie z zakładki Klienci.
+              Historia pakietów i wpłat zostanie bez danych kontaktowych.
             </p>
             <div className="mt-5 flex justify-end gap-2">
               <Button
@@ -103,7 +104,7 @@ function CustomerFileInner({ data }: { data: CustomerFileData }) {
                 disabled={pending}
                 onClick={() => void runAnonymize()}
               >
-                Usuń dane
+                Usuń klienta
               </Button>
             </div>
           </div>

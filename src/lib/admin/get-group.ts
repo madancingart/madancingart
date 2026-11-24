@@ -20,7 +20,7 @@ export async function getAdminGroup(
   const { data: row } = await supabase
     .from("recurring_classes")
     .select(
-      "id,location_id,class_type_id,weekday,start_time,duration_min,level,capacity,signup_open,active,trainer_id,price_item_id",
+      "id,location_id,class_type_id,weekday,start_time,duration_min,level,capacity,signup_open,free_signup,active,trainer_id,price_item_id",
     )
     .eq("id", classId)
     .maybeSingle();
@@ -44,6 +44,7 @@ export async function getAdminGroup(
   return {
     id: classRow.id,
     locationId,
+    classTypeId: classRow.class_type_id,
     weekday: classRow.weekday,
     startTime: classRow.start_time,
     durationMin: classRow.duration_min,
@@ -51,6 +52,7 @@ export async function getAdminGroup(
     slug: type?.slug ?? "",
     level: classRow.level,
     signupOpen: classRow.signup_open,
+    freeSignup: Boolean(classRow.free_signup),
     taken: seats.taken,
     capacity: classRow.capacity,
     trainerId: classRow.trainer_id,

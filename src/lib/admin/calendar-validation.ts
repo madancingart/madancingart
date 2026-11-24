@@ -17,6 +17,7 @@ export const addSlotsSchema = z.object({
 export const classSettingsSchema = z.object({
   classId: z.uuid(),
   signupOpen: z.boolean(),
+  freeSignup: z.boolean().optional(),
   capacity: z.coerce.number().int().min(1).max(80),
   trainerId: trainerIdValue,
   priceItemId: z
@@ -24,6 +25,38 @@ export const classSettingsSchema = z.object({
     .trim()
     .max(80)
     .transform((value) => (value.length === 0 ? null : value)),
+});
+
+const clockHm = z
+  .string()
+  .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Podaj godzinę.");
+
+export const recurringClassFormSchema = z.object({
+  id: z.uuid().optional(),
+  locationId: z.enum(["mikolow", "lubliniec"]),
+  classTypeId: z.uuid({ message: "Wybierz typ zajęć." }),
+  weekday: z.coerce.number().int().min(1).max(7),
+  startTime: clockHm,
+  durationMin: z.coerce.number().int().min(15).max(180),
+  level: z
+    .string()
+    .trim()
+    .max(40)
+    .transform((value) => (value.length === 0 ? null : value)),
+  capacity: z.coerce.number().int().min(1).max(80),
+  signupOpen: z.boolean(),
+  freeSignup: z.boolean(),
+  active: z.boolean(),
+  trainerId: trainerIdValue,
+  priceItemId: z
+    .string()
+    .trim()
+    .max(80)
+    .transform((value) => (value.length === 0 ? null : value)),
+});
+
+export const recurringClassIdSchema = z.object({
+  classId: z.uuid(),
 });
 
 export const slotTrainerSchema = z.object({
@@ -52,9 +85,6 @@ export const slotIdSchema = z.object({
 const isoDate = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, "Podaj datę.");
-const clockHm = z
-  .string()
-  .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Podaj godzinę.");
 
 export const slotSeriesOccupancySchema = z.object({
   locationId: z.enum(["mikolow", "lubliniec"]),

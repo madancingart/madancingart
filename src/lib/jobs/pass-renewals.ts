@@ -1,6 +1,6 @@
 import "server-only";
 
-import { findPriceItem } from "@/content/pricing";
+import { resolvePriceItem } from "@/lib/pricing/db";
 import { addDays } from "@/lib/billing/dates";
 import { quotePass } from "@/lib/billing/engine";
 import { passNotice } from "@/lib/billing/notices";
@@ -65,7 +65,9 @@ export async function runPassRenewals(ctx: JobContext): Promise<JobResult> {
 
     for (const enrollment of enrollments) {
       const cls = classes.get(enrollment.classId);
-      const price = cls?.priceItemId ? findPriceItem(cls.priceItemId) : null;
+      const price = cls?.priceItemId
+        ? await resolvePriceItem(cls.priceItemId)
+        : null;
       if (!cls || !price || price.billing !== "pass4" || price.amountCents <= 0) {
         result.skipped += 1;
         continue;

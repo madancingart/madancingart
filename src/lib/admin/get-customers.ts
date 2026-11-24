@@ -72,6 +72,9 @@ export async function getCustomersPage(
     query = query.order("created_at", { ascending: false });
   }
 
+  // Ukryj zanonimizowane kartoteki (RODO) — nie zaśmiecają listy.
+  query = query.neq("first_name", "Usunięto");
+
   const { data, count, error } = await query.range(from, to);
   if (error) {
     return { rows: [], total: 0 };

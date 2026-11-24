@@ -9,6 +9,7 @@ import {
   changeDueAction,
   recordPaymentAction,
   remindNowAction,
+  removePayerAction,
   voidChargeAction,
 } from "@/app/admin/(app)/rozliczenia/actions";
 import { formatBillingZloty, reminderStageLabel } from "@/lib/billing/status";
@@ -116,6 +117,22 @@ function RowActions({ row, payOrigin }: { row: ChargeListRow; payOrigin: string 
         </Button>
         <Button type="button" size="sm" variant="ghost" disabled={pending} onClick={() => setOpen(open === "void" ? null : "void")}>
           Anuluj należność
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          disabled={pending}
+          onClick={() =>
+            void run(() =>
+              removePayerAction({
+                customerId: row.customerId,
+                reason: "Usunięcie z rozliczeń (panel)",
+              }),
+            )
+          }
+        >
+          Usuń osobę z rozliczeń
         </Button>
       </div>
       {open === "pay" ? (

@@ -10,6 +10,8 @@ import {
   classSettingsSchema,
   createSlotSeriesSchema,
   moveBookingSchema,
+  recurringClassFormSchema,
+  recurringClassIdSchema,
   slotIdSchema,
   slotSeriesOccupancySchema,
   slotTrainerSchema,
@@ -27,10 +29,8 @@ import { sendConfirmationReminderForBooking } from "@/lib/booking/reminders";
 import { confirmationHref } from "@/lib/booking/confirmation-window";
 import { sendSlotCancelledBySchoolEmail, sendSlotMovedEmail } from "@/lib/email";
 import { site } from "@/content/site";
-import {
-  enrollmentBillingMode,
-  findPriceItem,
-} from "@/content/pricing";
+import { enrollmentBillingMode } from "@/content/pricing";
+import { resolvePriceItem } from "@/lib/pricing/db";
 import type { ClassTypeRow, RecurringClassRow } from "@/lib/types";
 
 export type ActionResult =
@@ -403,7 +403,7 @@ export async function updateClassSettings(
   const { supabase } = await requireAdmin();
   const { data: classRow } = await supabase
     .from("recurring_classes")
-    .select("id, location_id")
+    .select("id, location_id, free_signup")
     .eq("id", parsed.data.classId)
     .maybeSingle();
 
@@ -412,16 +412,21 @@ export async function updateClassSettings(
   }
 
   const priceItem = parsed.data.priceItemId
-    ? findPriceItem(parsed.data.priceItemId)
+    ? await resolvePriceItem(parsed.data.priceItemId)
     : null;
   if (parsed.data.priceItemId && (!priceItem || priceItem.locationId !== classRow.location_id)) {
     return fail("Ta pozycja nie należy do cennika tej lokalizacji.");
   }
 
+  const freeSignup =
+    parsed.data.freeSignup ??
+    Boolean((classRow as { free_signup?: boolean }).free_signup);
+
   const { error } = await supabase
     .from("recurring_classes")
     .update({
       signup_open: parsed.data.signupOpen,
+      free_signup: freeSignup,
       capacity: parsed.data.capacity,
       trainer_id: parsed.data.trainerId,
       price_item_id: parsed.data.priceItemId,
@@ -447,6 +452,136 @@ export async function updateClassSettings(
   revalidateCalendar();
   revalidatePath(`/admin/grupy/${parsed.data.classId}`);
   return { ok: true };
+}
+
+export async function saveRecurringClass(
+  input: unknown,
+): Promise<ActionResult> {
+  const parsed = recurringClassFormSchema.safeParse(input);
+  if (!parsed.success) {
+    return fail(parsed.error.issues[0]?.message ?? "Sprawdź formularz grupy.");
+  }
+
+  const { supabase } = await requireAdmin();
+  const priceItem = parsed.data.priceItemId
+    ? await resolvePriceItem(parsed.data.priceItemId)
+    : null;
+  if (
+    parsed.data.priceItemId &&
+    (!priceItem || priceItem.locationId !== parsed.data.locationId)
+  ) {
+    return fail("Ta pozycja nie należy do cennika tej lokalizacji.");
+  }
+  if (!parsed.data.freeSignup && !parsed.data.priceItemId) {
+    return fail("Ustaw pozycję cennika albo włącz zapis bez płatności.");
+  }
+
+  const row = {
+    location_id: parsed.data.locationId,
+    class_type_id: parsed.data.classTypeId,
+    weekday: parsed.data.weekday,
+    start_time: `${parsed.data.startTime}:00`,
+    duration_min: parsed.data.durationMin,
+    level: parsed.data.level,
+    capacity: parsed.data.capacity,
+    signup_open: parsed.data.signupOpen,
+    free_signup: parsed.data.freeSignup,
+    active: parsed.data.active,
+    trainer_id: parsed.data.trainerId,
+    price_item_id: parsed.data.priceItemId,
+  };
+
+  if (parsed.data.id) {
+    const { error } = await supabase
+      .from("recurring_classes")
+      .update(row)
+      .eq("id", parsed.data.id);
+    if (error) {
+      return fail("Nie udało się zapisać grupy.");
+    }
+    const billingMode = priceItem ? enrollmentBillingMode(priceItem) : null;
+    if (billingMode) {
+      await supabase
+        .from("enrollments")
+        .update({ billing_mode: billingMode })
+        .eq("recurring_class_id", parsed.data.id)
+        .in("status", ["pending", "active", "paused"]);
+    }
+    revalidateCalendar();
+    revalidatePath(`/admin/grupy/${parsed.data.id}`);
+    return { ok: true, message: "Zapisano grafik grupy." };
+  }
+
+  const { data, error } = await supabase
+    .from("recurring_classes")
+    .insert(row)
+    .select("id")
+    .maybeSingle();
+  if (error || !data) {
+    return fail("Nie udało się dodać grupy.");
+  }
+  revalidateCalendar();
+  return { ok: true, message: "Dodano stałe zajęcia do grafiku." };
+}
+
+export async function deactivateRecurringClass(
+  input: unknown,
+): Promise<ActionResult> {
+  const parsed = recurringClassIdSchema.safeParse(input);
+  if (!parsed.success) {
+    return fail("Niepoprawny identyfikator grupy.");
+  }
+  const { supabase } = await requireAdmin();
+  const { error } = await supabase
+    .from("recurring_classes")
+    .update({ active: false, signup_open: false })
+    .eq("id", parsed.data.classId);
+  if (error) {
+    return fail("Nie udało się wyłączyć grupy.");
+  }
+  revalidateCalendar();
+  revalidatePath(`/admin/grupy/${parsed.data.classId}`);
+  return { ok: true, message: "Grupa wyłączona — znika z publicznego grafiku." };
+}
+
+export async function deleteRecurringClass(
+  input: unknown,
+): Promise<ActionResult> {
+  const parsed = recurringClassIdSchema.safeParse(input);
+  if (!parsed.success) {
+    return fail("Niepoprawny identyfikator grupy.");
+  }
+  const { supabase } = await requireAdmin();
+  const classId = parsed.data.classId;
+
+  const [{ count: enrollCount }, { count: bookingCount }] = await Promise.all([
+    supabase
+      .from("enrollments")
+      .select("id", { count: "exact", head: true })
+      .eq("recurring_class_id", classId)
+      .in("status", ["pending", "active", "paused"]),
+    supabase
+      .from("bookings")
+      .select("id", { count: "exact", head: true })
+      .eq("recurring_class_id", classId)
+      .neq("status", "cancelled"),
+  ]);
+
+  if ((enrollCount ?? 0) > 0 || (bookingCount ?? 0) > 0) {
+    return fail(
+      "Nie można usunąć — są aktywne zapisy. Najpierw wyłącz grupę albo zakończ zapisy.",
+    );
+  }
+
+  const { error } = await supabase
+    .from("recurring_classes")
+    .delete()
+    .eq("id", classId);
+  if (error) {
+    return fail("Nie udało się usunąć grupy. Spróbuj najpierw ją wyłączyć.");
+  }
+  revalidateCalendar();
+  return { ok: true, message: "Usunięto grupę z grafiku." };
 }
 
 export async function addOpenSlots(input: unknown): Promise<ActionResult> {

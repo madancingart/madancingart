@@ -46,6 +46,7 @@ export type AdminBooking = {
 export type AdminClass = {
   id: string;
   locationId: string;
+  classTypeId: string;
   weekday: number;
   startTime: string;
   durationMin: number;
@@ -53,6 +54,7 @@ export type AdminClass = {
   slug: string;
   level: string | null;
   signupOpen: boolean;
+  freeSignup: boolean;
   taken: number;
   capacity: number;
   trainerId: string | null;
@@ -60,6 +62,12 @@ export type AdminClass = {
   bookings: AdminBooking[];
   members: AdminGroupMember[];
   cancelledDates: string[];
+};
+
+export type AdminClassType = {
+  id: string;
+  slug: string;
+  name: string;
 };
 
 export type AdminGroupMember = {
@@ -83,6 +91,7 @@ export type AdminGroupMember = {
 export type AdminGroupDetail = {
   id: string;
   locationId: LocationId;
+  classTypeId: string;
   weekday: number;
   startTime: string;
   durationMin: number;
@@ -90,6 +99,7 @@ export type AdminGroupDetail = {
   slug: string;
   level: string | null;
   signupOpen: boolean;
+  freeSignup: boolean;
   taken: number;
   capacity: number;
   trainerId: string | null;
@@ -119,4 +129,5 @@ export type AdminCalendarData = {
   classes: AdminClass[];
   slots: AdminSlot[];
   trainers: AdminTrainer[];
+  classTypes: AdminClassType[];
 };
