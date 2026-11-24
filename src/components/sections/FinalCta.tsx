@@ -1,5 +1,5 @@
 import Image from "next/image";
-import parkietCta from "@/assets/hero/parkiet-cta.jpg";
+import ctaImage from "@/assets/gallery/turnieje/ola-mikolaj.jpg";
 import { Button } from "@/components/ui/Button";
 import { Container } from "@/components/ui/Container";
 
@@ -7,11 +7,11 @@ export function FinalCta() {
   return (
     <section className="relative min-h-[60svh] overflow-hidden py-28">
       <Image
-        src={parkietCta}
+        src={ctaImage}
         alt="Aleksandra Janosz i Mikołaj Mazur podczas występu latino"
         fill
         sizes="100vw"
-        className="object-cover object-[center_32%] sm:object-[center_38%] lg:object-[center_42%]"
+        className="object-cover object-[42%_32%] sm:object-[center_38%] lg:object-[center_42%]"
       />
       <div
         className="absolute inset-0 bg-black/70"
