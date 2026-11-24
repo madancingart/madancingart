@@ -1,6 +1,6 @@
 import { ChevronDown } from "lucide-react";
 import Image from "next/image";
-import heroImage from "@/assets/hero/hero.jpg";
+import heroImage from "@/assets/gallery/turnieje/img-0699.jpg";
 import { Button } from "@/components/ui/Button";
 import { Container } from "@/components/ui/Container";
 import { HeroTopScrim } from "@/components/ui/HeroTopScrim";
@@ -18,7 +18,7 @@ export function Hero() {
         quality={70}
         placeholder="blur"
         sizes="100vw"
-        className="object-cover object-[center_22%] sm:object-[center_18%] lg:object-[center_14%]"
+        className="object-cover object-[58%_20%] sm:object-[52%_24%] lg:object-[center_28%]"
       />
       <div
         className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/90 from-10% via-black/40 to-transparent"
