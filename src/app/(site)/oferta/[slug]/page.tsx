@@ -61,7 +61,7 @@ export default async function OfferDetailPage({ params }: OfferPageProps) {
           fill
           priority
           sizes="100vw"
-          className="object-cover"
+          className={`object-cover ${item.imageClass}`}
         />
         <div
           className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-black/20"

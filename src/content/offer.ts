@@ -1,7 +1,7 @@
 import type { StaticImageData } from "next/image";
 import dzieci47 from "@/assets/offer/dzieci-4-7.jpg";
 import dzieci814 from "@/assets/offer/dzieci-8-14.jpg";
-import indywidualne from "@/assets/offer/indywidualne.jpg";
+import indywidualne from "@/assets/offer/indywidualne-face.jpg";
 import latinoMlodziez from "@/assets/offer/latino-mlodziez.jpg";
 import latinoPanie from "@/assets/offer/latino-panie.jpg";
 import pierwszyTaniec from "@/assets/offer/pierwszy-taniec.jpg";
@@ -21,6 +21,11 @@ export type OfferItem = {
   audience: string;
   highlights: string[];
   image: StaticImageData;
+  /**
+   * Kadrowanie przy object-cover (karta 4:3, hero oferty).
+   * Zawsze poziom twarzy — nigdy środek sylwetki.
+   */
+  imageClass: string;
   gallery?: string[];
   locations: LocationId[];
   ctaLabel: string;
@@ -46,6 +51,7 @@ export const offerItems: OfferItem[] = [
       "terminy dopasowane do pary",
     ],
     image: pierwszyTaniec,
+    imageClass: "object-[center_24%]",
     locations: bothLocations,
     ctaLabel: "Wybierz pakiet",
   },
@@ -68,6 +74,7 @@ export const offerItems: OfferItem[] = [
       "bez wcześniejszego doświadczenia",
     ],
     image: taniecUzytkowy,
+    imageClass: "object-[center_22%]",
     locations: bothLocations,
     ctaLabel: "Zapisz się",
   },
@@ -90,6 +97,7 @@ export const offerItems: OfferItem[] = [
       "bez partnera, w każdym wieku",
     ],
     image: latinoPanie,
+    imageClass: "object-[center_38%]",
     locations: bothLocations,
     ctaLabel: "Zapisz się",
   },
@@ -112,6 +120,7 @@ export const offerItems: OfferItem[] = [
       "nacisk na realny progres",
     ],
     image: latinoMlodziez,
+    imageClass: "object-[center_28%]",
     locations: bothLocations,
     ctaLabel: "Zapisz się",
   },
@@ -134,6 +143,7 @@ export const offerItems: OfferItem[] = [
       "każde dziecko zauważone i zaakceptowane",
     ],
     image: dzieci47,
+    imageClass: "object-[center_22%]",
     locations: bothLocations,
     ctaLabel: "Zapisz się",
   },
@@ -156,6 +166,7 @@ export const offerItems: OfferItem[] = [
       "przygotowanie rekreacyjne lub sportowe",
     ],
     image: dzieci814,
+    imageClass: "object-[center_22%]",
     locations: bothLocations,
     ctaLabel: "Zapisz się",
   },
@@ -178,6 +189,7 @@ export const offerItems: OfferItem[] = [
       "elastyczne terminy",
     ],
     image: indywidualne,
+    imageClass: "object-[center_45%]",
     locations: bothLocations,
     ctaLabel: "Zapisz się",
   },
@@ -200,6 +212,7 @@ export const offerItems: OfferItem[] = [
       "profesjonalizm, prestiż i świetna zabawa",
     ],
     image: proAm,
+    imageClass: "object-[center_18%]",
     locations: bothLocations,
     ctaLabel: "Zapisz się",
   },
@@ -222,6 +235,7 @@ export const offerItems: OfferItem[] = [
       "wszystko do dogadania",
     ],
     image: pokazy,
+    imageClass: "object-[center_20%]",
     locations: bothLocations,
     ctaLabel: "Porozmawiajmy o terminie",
   },

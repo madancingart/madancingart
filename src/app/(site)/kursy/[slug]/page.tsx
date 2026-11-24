@@ -98,7 +98,7 @@ export default async function CoursePage({
               src={photo}
               alt={trainer.name}
               sizes="96px"
-              className={`h-24 w-20 object-cover ${trainer.photoClass ?? ""}`}
+              className={`h-24 w-20 object-cover ${trainer.photoClass ?? "object-[center_18%]"}`}
             />
             <div>
               <p className="text-sm text-muted">Prowadzący</p>

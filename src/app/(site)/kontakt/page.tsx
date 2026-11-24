@@ -127,7 +127,7 @@ export default async function ContactPage() {
                     alt={`Sala taneczna w ${location.city === "Mikołów" ? "Mikołowie" : "Lublińcu"}, ${location.address}`}
                     fill
                     sizes="(max-width: 1024px) 100vw, 50vw"
-                    className="object-cover"
+                    className="object-cover object-[center_42%]"
                   />
                 </div>
                 <div className="flex flex-col gap-4 p-6 md:p-8">

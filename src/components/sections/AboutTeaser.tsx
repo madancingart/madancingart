@@ -42,7 +42,7 @@ export function AboutTeaser() {
                   alt="Aleksandra i Mikołaj podczas występu latino na parkiecie"
                   fill
                   sizes="(max-width: 768px) 100vw, 55vw"
-                  className="object-cover"
+                  className="object-cover object-[center_42%]"
                 />
               </div>
             </div>

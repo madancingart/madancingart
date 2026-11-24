@@ -32,7 +32,7 @@ export function LocationsSection() {
                   alt={`Sala taneczna M&A Dancing Art — ${location.city}, ${location.address}`}
                   fill
                   sizes="(max-width: 768px) 100vw, 50vw"
-                  className="object-cover"
+                  className="object-cover object-[center_42%]"
                 />
               </div>
               <div className="p-6 md:p-8">
