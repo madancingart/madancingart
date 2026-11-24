@@ -18,7 +18,7 @@ export function Hero() {
         quality={70}
         placeholder="blur"
         sizes="100vw"
-        className="object-cover object-[center_22%] sm:object-[center_26%] lg:object-[center_28%]"
+        className="object-cover object-[center_22%] sm:object-[center_18%] lg:object-[center_14%]"
       />
       <div
         className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/90 from-10% via-black/40 to-transparent"

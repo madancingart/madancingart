@@ -189,7 +189,7 @@ export const offerItems: OfferItem[] = [
       "elastyczne terminy",
     ],
     image: indywidualne,
-    imageClass: "object-[center_40%]",
+    imageClass: "object-[center_32%]",
     locations: bothLocations,
     ctaLabel: "Zapisz się",
   },

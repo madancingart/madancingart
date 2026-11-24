@@ -54,7 +54,7 @@ export default async function OfferDetailPage({ params }: OfferPageProps) {
 
   return (
     <>
-      <section className="relative -mt-16 min-h-[50svh]">
+      <section className="relative -mt-16 min-h-[55svh] md:min-h-[60svh]">
         <Image
           src={item.image}
           alt={`${item.name} — M&A Dancing Art`}
@@ -68,7 +68,7 @@ export default async function OfferDetailPage({ params }: OfferPageProps) {
           aria-hidden
         />
         <HeroTopScrim />
-        <Container className="relative z-[2] flex min-h-[50svh] flex-col justify-end pb-12 pt-28">
+        <Container className="relative z-[2] flex min-h-[55svh] flex-col justify-end pb-12 pt-28 md:min-h-[60svh]">
           <span className="mb-3 block font-script text-4xl text-gold md:text-5xl">
             {item.scriptPhrase}
           </span>
