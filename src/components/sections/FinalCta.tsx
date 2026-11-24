@@ -11,7 +11,7 @@ export function FinalCta() {
         alt="Aleksandra Janosz i Mikołaj Mazur podczas występu latino"
         fill
         sizes="100vw"
-        className="object-cover object-[center_45%]"
+        className="object-cover object-[center_32%] sm:object-[center_38%] lg:object-[center_42%]"
       />
       <div
         className="absolute inset-0 bg-black/70"
